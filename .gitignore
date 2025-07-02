@@ -1,0 +1,57 @@
+# Build artifacts
+*.o
+*.obj
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.gch
+*.pch
+*.d
+
+# CMake build directories
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+
+# Visual Studio files
+.vs/
+*.VC.opendb
+*.VC.db
+*.VC.VC.opendb
+*.VC.VC.db
+*.suo
+*.user
+*.ncb
+*.aps
+*.bsc
+*.sbr
+*.tlog
+ipch/
+Debug/
+Release/
+x64/
+Win32/
+
+# CLion files
+.idea/
+cmake-build-*/
+
+# Eclipse files
+.project
+.cproject
+.settings/
+
+# macOS specific files
+.DS_Store
+
+# Other common temporary files
+*~
+*.log
+*.tmp
