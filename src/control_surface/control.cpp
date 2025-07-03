@@ -70,6 +70,10 @@ void Control::sendMidi(ShortMessage &msg) {
     }
 }
 
+void Control::setMidiOutPort(shared_ptr<RtMidiOut> midiOut) {
+    _midiOut = midiOut; // Set the MIDI output port for sending messages
+}
+
 bool Control::_matchType(ShortMessage &msg) 
 {
     // Check if the message type matches the control type

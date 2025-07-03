@@ -115,6 +115,7 @@ void MPCStudioBlack::handleError(const RtMidiError &error) {
 
 void MPCStudioBlack::registerControl(shared_ptr<Control> control) {
     if (control) {
+        control->setMidiOutPort(midiOut);
         _controlRegistry.push_back(control);
     }
 }

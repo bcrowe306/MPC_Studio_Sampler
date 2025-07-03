@@ -1,0 +1,161 @@
+MPCSampler:
+  Transport:
+  Settings:
+    - Name: "Global"
+      Type: "Audio"
+      Parameters:
+        Volume: 0.8
+        Pan: 0.0
+  Devices:
+    - Name: "Sampler"
+      Type: "Audio"
+      Parameters:
+        SampleRate: 44100
+        BufferSize: 512
+        AudioFile: "/path/to/sample.wav"
+        Loop: false
+        StartTime: 0.0
+        EndTime: 1.0
+        Pitch: "C4"
+        Volume: 0.8
+        Pan: 0.0
+        Effects: []
+    - Name: "Synth"
+      Type: "MIDI"
+      Parameters:
+        Oscillators: 2
+        Waveform: "Sawtooth"
+        Filter: "Low Pass"
+        CutoffFrequency: 2000
+        Resonance: 0.5
+        Volume: 0.8
+        Pan: 0.0
+        Effects: []
+    - Name: "AudioClip"
+      Type: "Audio"
+      Parameters:
+        File: "/path/to/audio_clip.wav"
+        StartTime: 0.0
+        EndTime: 10.0
+        Volume: 0.8
+        Pan: 0.0
+        Loop: true
+  Effects:
+    - Name: "Reverb"
+      Type: "Audio"
+      Parameters:
+        RoomSize: 0.5
+        Damping: 0.5
+        WetLevel: 0.5
+        DryLevel: 0.5
+    - Name: "Delay"
+      Type: "Audio"
+      Parameters:
+        DelayTime: 500
+        Feedback: 0.5
+        WetLevel: 0.5
+        DryLevel: 0.5
+    - Name: "EQ"
+      Type: "Audio"
+      Parameters:
+        LowGain: 0.0
+        MidGain: 0.0
+        HighGain: 0.0
+  Project:
+    Name: "MPC Project"
+    Description: "A sample project for the MPC Sampler"
+    Version: "1.0"
+    Created: "2023-10-01"
+    Tracks:
+      - Name: "Track 1"
+        Device:
+          Sampler:
+        Effects: []
+    Busses:
+      - Name: "Main Output"
+        Type: "Audio"
+        Parameters:
+          Volume: 0.8
+          Pan: 0.0
+          Effects: []
+      - Name: "Aux Output"
+        Type: "Audio"
+        Parameters:
+          Volume: 0.5
+          Pan: 0.0
+          Effects: []
+    Sequencer:
+      Tempo: 120
+      TimeSignature: "4/4"
+      Metronome: true
+      InputQuantization: "16th"
+      LaunchQuantization: "Bar"
+      Sequences:
+        - Name: "Sequence 1"
+          Length: "4 Bars"
+          Tracks:
+            - Name: "Track 1"
+              Clip:
+                Name: "Clip 1"
+                Length: "4 Bars"
+                Notes:
+                  - Pitch: "C4"
+                    Start: "1 Bar"
+                    Duration: "1 Bar"
+                    Velocity: 100
+                  - Pitch: "E4"
+                    Start: "2 Bars"
+                    Duration: "1 Bar"
+                    Velocity: 100
+                  - Pitch: "G4"
+                    Start: "3 Bars"
+                    Duration: "1 Bar"
+                    Velocity: 100
+    Arranger:
+      Arrangements:
+        - Name: "Arrangement 1"
+          Sequences:
+            - Name: "Sequence 1"
+              Start: "0 Bars"
+              Length: "4 Bars"
+              Loops: true
+  
+TrackCount: 64
+BusCount: 8
+EffectCount: 8
+
+ControlSurface:
+  SessionComponent:
+    Description: "Each pad represents a track that has a device such as a sampler, synth, or audio clip. Pressing the pad plays and selects the track. 64 total pads."
+  NotesComponent:
+    Description: "Plays the device in a keyboard fashion. 16 pads in a 4x4 grid. This also where chord and scale modes are accessed."
+  MixerComponent:
+    Description: "Controls the volume, pan, and effects for each track. 4 faders for volume, 4 knobs for pan, and 4 knobs for effects."
+  TransportComponent:
+    Description: "Controls the transport of the MPC, including play, stop, record, and metronome. 4 buttons for transport controls, 1 button for metronome."
+  GlobalComponent:
+    Description: "Controls global settings such as tempo, time signature, and quantization. 1 knob for tempo, 1 knob for time signature, 1 button for quantization."
+  BrowserComponent:
+    Description: "Allows browsing and loading of samples, presets, and projects. 1 knob for browsing, 1 button for loading, 1 button for saving."
+  SettingsComponent:
+    Description: "Controls global settings such as audio device, sample rate, and buffer size"
+
+Component:
+  Name: "MPC Sampler Component"
+  Active: true
+  Controls:
+    - Type: "Button"
+      Name: "Play"
+      Action: "Play"
+    - Type: "Button"
+      Name: "Stop"
+      Action: "Stop"
+    - Type: "Button"
+      Name: "Record"
+      Action: "Record"
+    - Type: "Knob"
+      Name: "Volume"
+      Action: "Adjust Volume"
+    - Type: "Knob"
+      Name: "Pan"
+      Action: "Adjust Pan"
