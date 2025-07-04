@@ -7,8 +7,7 @@ class TransportComponent : public Component {
 public:
 
     TransportComponent(shared_ptr<class MPCStudioBlackControlSurface> controlSurface) : Component(controlSurface) {
-        name = "TransportComponent"; // Set the name of the component
-       
+
         
     }
 
