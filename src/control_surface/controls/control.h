@@ -26,7 +26,7 @@ public:
         PITCH_BEND,
         AFTERTOUCH
     };
-    sigslot::signal<uint8_t> onValue; // Signal for control value changes
+    sigslot::signal<ShortMessage &> onValue; // Signal for control value changes
     sigslot::signal<float> onUnitValue; // Signal for control value changes in float format
     sigslot::signal<bool> onActiveChanged; // Signal for active state changes
 

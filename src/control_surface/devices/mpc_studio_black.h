@@ -1,5 +1,5 @@
 #pragma once
-#include "const.h"
+#include "mpc_studio_surface_def.h"
 #include "rtmidi/RtMidi.h"
 #include "util.h"
 #include <string>
@@ -7,20 +7,20 @@
 #include "audio/choc_MIDI.h"
 #include <functional>
 #include "cairo.h"
-#include "control.h"
+#include "control_surface/controls/controls.h"
 #include <memory>
 
 using std::shared_ptr;
 using std::vector;
 using std::string;
 
-class MPCStudioBlack {
+class MPCStudioBlackDevice {
 public:
     std::function <void(choc::midi::ShortMessage)> onMidiMessage;
 
 public:
-    MPCStudioBlack(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn);
-    ~MPCStudioBlack();
+    MPCStudioBlackDevice(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn);
+    ~MPCStudioBlackDevice();
     void openOutputPort();
     void openInputPort();
     void sendSysExMessage(const std::vector<unsigned char> &message);
@@ -31,7 +31,7 @@ public:
 
     static void midiInCallback(
         double deltatime, std::vector<unsigned char> *message, void *userData) {
-      MPCStudioBlack *instance = static_cast<MPCStudioBlack *>(userData);
+      MPCStudioBlackDevice *instance = static_cast<MPCStudioBlackDevice *>(userData);
       if (message->size() > 0 && (*message)[0] == SYSEX_START) {
         // Handle SysEx message
         instance->handleSysExMessage(*message);

@@ -1,6 +1,7 @@
 {
     "dependencies": [
         "cairomm",
-        "rtmidi"
+        "rtmidi",
+        "stduuid"
     ]
 }

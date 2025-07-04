@@ -1,13 +1,10 @@
 #include "mpc_studio_black.h"
-#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <string>
-#include <thread> // Required for std::this_thread::sleep_for
 
-using std::to_string;
 
-MPCStudioBlack::MPCStudioBlack(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn)
+MPCStudioBlackDevice::MPCStudioBlackDevice(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn)
     : midiOut(midiOut), midiIn(midiIn) 
 {
     encoded_line.reserve(120); // Reserve space for 120 bytes (360 pixels / 3 bytes per pixel)
@@ -20,7 +17,7 @@ MPCStudioBlack::MPCStudioBlack(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiI
     switchToPrivateMode();
 }
 
-MPCStudioBlack::~MPCStudioBlack() {
+MPCStudioBlackDevice::~MPCStudioBlackDevice() {
     // Set the device back to public mode before destruction
     switchToPublicMode();
     midiIn->cancelCallback();
@@ -28,7 +25,7 @@ MPCStudioBlack::~MPCStudioBlack() {
     midiIn->closePort();
 }
 
-void MPCStudioBlack::openOutputPort() {
+void MPCStudioBlackDevice::openOutputPort() {
     auto nDevices = midiOut->getPortCount();
     for (unsigned int i = 0; i < nDevices; ++i) {
         try {
@@ -45,7 +42,7 @@ void MPCStudioBlack::openOutputPort() {
     }
 }
 
-void MPCStudioBlack::openInputPort() {
+void MPCStudioBlackDevice::openInputPort() {
     auto nDevices = midiIn->getPortCount();
     for (unsigned int i = 0; i < nDevices; ++i) {
         try {
@@ -62,7 +59,7 @@ void MPCStudioBlack::openInputPort() {
     }
 }
 
-void MPCStudioBlack::sendSysExMessage(const std::vector<unsigned char> &message) {
+void MPCStudioBlackDevice::sendSysExMessage(const std::vector<unsigned char> &message) {
     // Append the SYSEX HEADER 
     std::vector<unsigned char> sysexMessage;
     sysexMessage.insert(sysexMessage.end(), SYSEX_MESSAGE_HEADER.begin(), SYSEX_MESSAGE_HEADER.end());
@@ -75,7 +72,7 @@ void MPCStudioBlack::sendSysExMessage(const std::vector<unsigned char> &message)
     }
 }
 
-void MPCStudioBlack::sendSysExCommand(unsigned char commandId, const std::vector<unsigned char> &data) {
+void MPCStudioBlackDevice::sendSysExCommand(unsigned char commandId, const std::vector<unsigned char> &data) {
     std::vector<unsigned char> message = {commandId};
     size_t dataSize = data.size();
     // 2 char array for MSB and LSB
@@ -88,22 +85,22 @@ void MPCStudioBlack::sendSysExCommand(unsigned char commandId, const std::vector
     sendSysExMessage(message);
 }
 
-void MPCStudioBlack::handleSysExMessage(const std::vector<unsigned char> &message) {
+void MPCStudioBlackDevice::handleSysExMessage(const std::vector<unsigned char> &message) {
    
     // Process the SysEx message
 }
 
-void MPCStudioBlack::switchToPrivateMode() {
+void MPCStudioBlackDevice::switchToPrivateMode() {
     std::vector<unsigned char> data = {SYSEX_PRIVATE_MODE_ID};
     sendSysExCommand(SYSEX_COMMAND_ID_MODE, data);
 }
 
-void MPCStudioBlack::switchToPublicMode() {
+void MPCStudioBlackDevice::switchToPublicMode() {
     std::vector<unsigned char> data = {SYSEX_PUBLIC_MODE_ID};
     sendSysExCommand(SYSEX_COMMAND_ID_MODE, data);
 }
 
-void MPCStudioBlack::handleError(const RtMidiError &error) {
+void MPCStudioBlackDevice::handleError(const RtMidiError &error) {
     std::cerr << "MIDI Error: " << error.getMessage() << "\n";
     if (error.getType() == RtMidiError::WARNING) {
         std::cerr << "This is a warning, continuing execution.\n";
@@ -113,20 +110,20 @@ void MPCStudioBlack::handleError(const RtMidiError &error) {
     }
 }
 
-void MPCStudioBlack::registerControl(shared_ptr<Control> control) {
+void MPCStudioBlackDevice::registerControl(shared_ptr<Control> control) {
     if (control) {
         control->setMidiOutPort(midiOut);
         _controlRegistry.push_back(control);
     }
 }
 
-void MPCStudioBlack::signalControls(choc::midi::ShortMessage &msg) {
+void MPCStudioBlackDevice::signalControls(choc::midi::ShortMessage &msg) {
     for (const auto &control : _controlRegistry) {
         control->midiInput(msg);
     }
 }
 
-void MPCStudioBlack::setDisplayScreen(unsigned int pixel_count, unsigned int x, unsigned int y, vector<unsigned char> &pixel_data) {
+void MPCStudioBlackDevice::setDisplayScreen(unsigned int pixel_count, unsigned int x, unsigned int y, vector<unsigned char> &pixel_data) {
     unsigned char pixel_count_msblsb[2];
     unsigned char x_msb_lsb[2];
     unsigned char y_msb_lsb[2];
@@ -148,9 +145,10 @@ void MPCStudioBlack::setDisplayScreen(unsigned int pixel_count, unsigned int x, 
     sendSysExCommand(SYSEX_COMMAND_ID_SCREEN, message);
 
 }
-    
 
-void MPCStudioBlack::sendImageBuffer(cairo_surface_t *surface, unsigned int x_pos, unsigned int y_pos){
+void MPCStudioBlackDevice::sendImageBuffer(cairo_surface_t *surface,
+                                           unsigned int x_pos,
+                                           unsigned int y_pos) {
 
     auto width = cairo_image_surface_get_width(surface);
     auto height = cairo_image_surface_get_height(surface);

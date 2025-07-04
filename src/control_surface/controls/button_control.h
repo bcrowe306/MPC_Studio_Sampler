@@ -1,3 +1,4 @@
+#include "audio/choc_MIDI.h"
 #include "control.h"
 #include "sigslot/signal.hpp"
 
@@ -18,10 +19,10 @@ class PlainButtonControl : public ButtonControl {
         };
         PlainButtonControl(uint8_t controlId, const std::string &label = "", bool active = true)
             : ButtonControl(Control::Type::NOTE, 0x00, controlId, label, active) {
-            this->onValue.connect([this](uint8_t value) {
-                if (value > 0) {
+            this->onValue.connect([this](ShortMessage& msg) {
+                if(msg.isNoteOn()) {
                     onPressed(); // Emit signal when button is pressed
-                } else {
+                } else if(msg.isNoteOff()) {
                     onReleased(); // Emit signal when button is released
                 }
             });
@@ -37,10 +38,10 @@ public:
     };
     OneColorButtonControl(uint8_t controlId, const std::string &label = "", bool active = true)
         : ButtonControl(Control::Type::NOTE, 0x00, controlId, label, active) {
-        this->onValue.connect([this](uint8_t value) {
-            if (value > 0) {
+        this->onValue.connect([this](ShortMessage& msg) {
+            if (msg.isNoteOn()) {
                 onPressed(); // Emit signal when button is pressed
-            } else {
+            } else if (msg.isNoteOff()) {
                 onReleased(); // Emit signal when button is released
             }
         });
@@ -64,10 +65,10 @@ public:
     };
     TwoColorButtonControl(uint8_t controlId, const std::string &label = "", bool active = true)
         : ButtonControl(Control::Type::NOTE, 0x00, controlId, label, active) {
-        this->onValue.connect([this](uint8_t value) {
-            if (value > 0) {
+        this->onValue.connect([this](ShortMessage& msg) {
+            if (msg.isNoteOn()) {
                 onPressed(); // Emit signal when button is pressed
-            } else {
+            } else if (msg.isNoteOff()) {
                 onReleased(); // Emit signal when button is released
             }
         });

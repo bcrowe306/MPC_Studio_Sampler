@@ -1,18 +1,16 @@
 #pragma once
 #include "LabSound/LabSound.h"
-#include "LabSound/core/AudioBus.h"
-#include "LabSound/core/SampledAudioNode.h"
-#include "LabSound/extended/AudioFileReader.h"
 #include "core/parameter.h"
 #include "sigslot/signal.hpp"
 #include <iostream>
 #include <string>
 #include "device_base.h"
-
+#include "util.h"
 using std::string;
 
 class SamplerDevice : public DeviceBase {
 public:
+    uuids::uuid id = generateUUID(); // Unique identifier for the sampler device
     SamplerDevice(std::shared_ptr<lab::AudioContext> &audioContext, std::string file_path = "")
         : DeviceBase(audioContext)
     {

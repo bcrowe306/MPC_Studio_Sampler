@@ -1,8 +1,12 @@
 #pragma once
-#include <vector>
-#include <string>
+#include "uuid.h"
 #include <algorithm>
+#include <optional>
+#include <string>
+#include <vector>
 
+using namespace uuids;
+using namespace std;
 
 static inline unsigned int from_msb_lsb(unsigned char msb, unsigned char lsb) {
     return ((msb & 0x7F) << 7) | (lsb & 0x7F);
@@ -38,3 +42,25 @@ inline float linearToDB(float linearValue) {
 inline float linearToPercentage(float linearValue, float maxLinearValue) {
     return (linearValue / maxLinearValue) * 100.0f;
 }
+
+static inline uuid generateUUID() {
+    std::random_device rd;
+    auto seed_data = std::array<int, std::mt19937::state_size>{};
+    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 generator(seq);
+    uuids::uuid_random_generator gen{generator};
+
+    return gen();
+};
+
+static inline uuid GenerateFromString(string uuid_string) {
+    auto result = uuid::from_string(uuid_string);
+    if (result.has_value()) {
+        return result.value();
+    } else {
+        return uuid{};
+    }
+};
+
+static inline string UUIDToString(uuid id) { return uuids::to_string(id); };

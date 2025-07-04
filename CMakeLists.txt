@@ -8,16 +8,12 @@ project(MPCSBC VERSION 0.1.0 LANGUAGES C CXX)
 
 include(FetchContent)
 
-
-
-
 add_executable(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/src/main.cpp)
 
 #Sigslot
 FetchContent_Declare(
   sigslot
   GIT_REPOSITORY https://github.com/palacaze/sigslot
-  GIT_TAG        19a6f0f5ea11fc121fe67f81fd5e491f2d7a4637 # v1.2.0
 )
 FetchContent_MakeAvailable(sigslot)
 target_link_libraries(${PROJECT_NAME} PRIVATE Pal::Sigslot)
@@ -28,6 +24,9 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/src/control_surface)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/core)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/ui)
+
+find_package(stduuid CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE stduuid)
 
 
 # fmt
@@ -46,8 +45,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(yaml-cpp)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp) # The library or executable that require yaml-cpp library
-
-
 
 # Cairo
 find_package(PkgConfig REQUIRED)
@@ -72,6 +69,21 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/bin/LabSound_d
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/bin/libLabSoundRtAudio_d.a)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libnyquist/lib/liblibnyquist_d.a)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libsamplerate/src/libsamplerate.a)
+
+
+# Resources
+
+set(RESOURCE_DIRS assets config)
+
+foreach(dir ${RESOURCE_DIRS})
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/${dir}"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
+        COMMENT "Copying ${dir} to output directory"
+    )
+endforeach()
+
 
 if(APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE

@@ -27,7 +27,6 @@ struct SongPosition {
     int bar;          // Current bar number
     int beat;         // Current beat number within the bar
     int sixteenthNote; // Current sixteenth note within the beat
-    int ticks;       // Total ticks since the start of the song
 
     string getSongPositionDisplay() const {
         return fmt::format("{:02}.{:02}.{:02}", bar, beat, sixteenthNote);
@@ -111,6 +110,11 @@ class MidiClock {
         // Call this every audio block
         void processBlock(double sampleRate, int blockSize) {
             setSampleRate(sampleRate);
+
+            if (!_enabled) {
+                return; // Skip processing if the clock is disabled
+            }
+
             double ticksThisBlock = blockSize / _samplesPerTick;
             _tickAccumulator += ticksThisBlock;
     
@@ -120,9 +124,42 @@ class MidiClock {
                 ++_ticks;
             }
         }
+
+        void reset() {
+            _ticks = 0;
+            _tickAccumulator = 0.0;
+            onSongPositionChanged(_ticks);
+            onSongPositionDisplayChanged(generateDisplayString(0, 0, 0));
+        }
+
+        void stop(bool doReset = true) {
+            _enabled = false; // Disable the clock
+            if (doReset) {
+                reset(); // Reset the clock if requested
+            }
+        }
+
+        void start() {
+            _enabled = true; // Enable the clock
+        }
+
+        bool isEnabled() const {
+            return _enabled; // Check if the clock is enabled
+        }
     
     private:
+        bool _enabled = false; // Whether the clock is enabled
+        SongPosition generateSongPosition() const {
+            int ticksPerBar = ppqn * _timeSignature.numerator;
+            int ticksPerBeat = ppqn / (_timeSignature.denominator / 4);
+            int ticksPerSixteenth = ticksPerBeat / 4;
 
+            int bar = _ticks / ticksPerBar;
+            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+
+            return {bar, beat, sixteenthNote};
+        }
         void _onTick(){
             int ticksPerBar = ppqn * _timeSignature.numerator;
             int ticksPerBeat = ppqn /  (_timeSignature.denominator / 4);

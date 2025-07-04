@@ -9,7 +9,7 @@ void Control::midiInput(ShortMessage &msg) {
     if (_matchType(msg) && msg.getChannel0to15() == _controlChannel && _matchId(msg)) {
         _value = _getValue(msg); // Get the value from the message
         if(_active){
-            onValue(_value); // Emit signal with the new value
+            onValue(msg); // Emit signal with the new value
             onUnitValue(midiValueToFloat(_value)); // Emit signal with the new value as float
         }
     }

@@ -1,10 +1,12 @@
 #include "encoder_control.h"
+#include "audio/choc_MIDI.h"
+#include <_types/_uint8_t.h>
 
 EncoderControl::EncoderControl(uint8_t controlChannel, uint8_t controlId, const std::string &label, bool active)
     : Control(Type::CC, controlChannel, controlId, label, active) {
-    this->onValue.connect([this](uint8_t value) {
+    this->onValue.connect([this](ShortMessage & msg) {
         // Emit signal when encoder value changes
-        auto offsetAmount = getOffsetAmount(value);
+        auto offsetAmount = getOffsetAmount(msg.getControllerValue());
         onOffset(offsetAmount);
         onOffsetUnit(offsetAmount / 64);
 
@@ -17,7 +19,7 @@ EncoderControl::EncoderControl(uint8_t controlChannel, uint8_t controlId, const 
 }
 
 
-int EncoderControl::getOffsetAmount(uint8_t &value) const {
+int EncoderControl::getOffsetAmount(uint8_t value) const {
     int seventhBit = (value & 0b1000000) >> 6;
     int offsetAmount = (value & 0b0111111);
     if (bool(seventhBit)) { // Convert to signed value

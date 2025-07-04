@@ -1,5 +1,5 @@
 #pragma once
-#include "Widget.h"
+#include "widgets/widget.h"
 #include <unordered_map>
 #include <string>
 #include <memory>

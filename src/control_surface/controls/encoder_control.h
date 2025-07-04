@@ -14,5 +14,5 @@ class EncoderControl : public Control {
     
     virtual ~EncoderControl() = default;
 
-    int getOffsetAmount(uint8_t &value) const ;
+    int getOffsetAmount(uint8_t value) const ;
 };

@@ -1,4 +1,4 @@
-#include "Widget.h"
+#include "widget.h"
 #include <iostream>
 
 Widget::Widget(unsigned int x, unsigned int y, unsigned int width, unsigned int height)
