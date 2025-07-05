@@ -3,12 +3,11 @@
 #include <vector>
 #include <memory>
 #include <functional>
-
+#include "ui_helpers.h"
 using std::function;
 using std::shared_ptr;
-using std::unique_ptr;
-using std::make_shared;
 using std::vector;
+
 
 // typedef for a function that encodes a cairo surface
 
@@ -81,6 +80,8 @@ protected:
     bool _active = true;
     bool _enabled = true;
     vector<shared_ptr<Widget>> children;
+    unsigned int width;
+    unsigned int height;
 private:
     void encode_surface(Vector offset);
 };

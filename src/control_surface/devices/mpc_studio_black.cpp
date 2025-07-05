@@ -154,7 +154,7 @@ void MPCStudioBlackDevice::sendImageBuffer(cairo_surface_t *surface,
     auto height = cairo_image_surface_get_height(surface);
     auto stride = cairo_image_surface_get_stride(surface);
     auto image_buffer = cairo_image_surface_get_data(surface);
-    int pixel_on_threshold = 180; // Threshold for pixel color to be considered "on"
+    int pixel_on_threshold = 128; // Threshold for pixel color to be considered "on"
 
 
     // Log the dimensions of the image

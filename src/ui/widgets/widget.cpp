@@ -5,19 +5,43 @@ Widget::Widget(unsigned int x, unsigned int y, unsigned int width, unsigned int 
     : position(x, y) {
     surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
     cr = cairo_create(surface);
+    this->width = width;
+    this->height = height;
 }
 Widget::Widget(Vector position, unsigned int width, unsigned int height)
     : position(position) {
     surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
+    this->width = width;
+    this->height = height;
     cr = cairo_create(surface);
+    
 }
 Widget::Widget(unsigned int width, unsigned int height)
-    : Widget(0, 0, width, height) {}
+    : Widget(0, 0, width, height) {
+        this->width = width;
+        this->height = height;
+        position = Vector(0, 0); // Initialize position
+        surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
+        cr = cairo_create(surface);
+    }
 
 Widget::Widget(Vector position, Vector size)
-    : Widget(position.x, position.y, size.x, size.y) {}
+    : Widget(position.x, position.y, size.x, size.y) {
+    this->width = size.x;
+    this->height = size.y;
+    position = position; // Initialize position
+    surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
+    cr = cairo_create(surface);
+    }
 
-Widget::Widget() : Widget(0, 0, 360, 96) {} // Default constructor with default size
+Widget::Widget() : Widget(0, 0, 360, 96) {
+    // Default constructor initializes a widget with default size
+    this->width = 360;
+    this->height = 96;
+    position = Vector(0, 0);
+    surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
+    cr = cairo_create(surface);
+} // Default constructor with default size
 
 void Widget::clear() {
     if (cr) {

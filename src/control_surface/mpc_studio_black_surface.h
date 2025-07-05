@@ -94,6 +94,7 @@ public:
     MPCStudioBlackControlSurface()
     {
         device = make_shared<MPCStudioBlackDevice>(midiout, midiin);
+        initialize();
     };
     ~MPCStudioBlackControlSurface() = default;
 

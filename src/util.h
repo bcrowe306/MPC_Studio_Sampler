@@ -64,3 +64,5 @@ static inline uuid GenerateFromString(string uuid_string) {
 };
 
 static inline string UUIDToString(uuid id) { return uuids::to_string(id); };
+
+static inline double angleToRad(double angle) { return angle * (M_PI / 180.0); }

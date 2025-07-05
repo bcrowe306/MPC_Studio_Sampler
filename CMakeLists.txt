@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED)
 
-set(CMAKE_TOOLCHAIN_FILE "/Users/brandoncrowe/vcpkg/scripts/buildsystems/vcpkg.cmake")
+set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 
 project(MPCSBC VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -68,7 +68,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/bin/LabSound_d
 # target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/bin/libLabSoundMiniAudio_d.a)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/bin/libLabSoundRtAudio_d.a)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libnyquist/lib/liblibnyquist_d.a)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libsamplerate/src/libsamplerate.a)
+# target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libsamplerate/src/libsamplerate.a)
 
 
 # Resources
