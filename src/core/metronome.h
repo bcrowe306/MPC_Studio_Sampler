@@ -3,7 +3,6 @@
 #include <functional>
 #include "LabSound/LabSound.h"
 #include "audio/choc_MIDI.h"
-#include "parameter.h"
 using std::shared_ptr;
 using std::make_shared;
 
@@ -12,9 +11,7 @@ using std::make_shared;
 class MetronomeNode {
     public:
 
-        BoolParameter enabled = BoolParameter("Enabled", true, "Enable or disable the metronome");
-        FloatParameter volume = FloatParameter("Volume", 0.75f, 0.0f, 6.0f);
-        BoolParameter halfBeatEnabled = BoolParameter("Half Beat Enabled", false, "Enable or disable half beat clicks");
+       
         shared_ptr<lab::AudioContext> audioContext; // Audio context for the metronome
         shared_ptr<lab::SampledAudioNode> clickSampleNode;
         shared_ptr<lab::GainNode> clickGainNode;
@@ -33,9 +30,7 @@ class MetronomeNode {
             audioContext->connect(audioContext->destinationNode(), clickGainNode, 0, 0);
             audioContext->synchronizeConnections();
 
-            volume.onValueChanged.connect([this](float newVolume) {
-                clickGainNode->gain()->setValue(newVolume);
-            });
+            
         }
 
         ~MetronomeNode() {
@@ -46,7 +41,7 @@ class MetronomeNode {
         }
 
         void playClick(float note, float velocity) {
-            if(!enabled.getValue()) {
+            if(!_enabled) {
                 return; // Do not play if metronome is disabled
             }
             auto baseFreq = choc::midi::noteNumberToFrequency(60); // Middle C frequency
@@ -62,15 +57,26 @@ class MetronomeNode {
                 playClick(67, .75f); // Play bar click at note 67 (G4) with full velocity
             } else if(isBeat) {
                 playClick(60, 0.5f); // Play beat click at note 60 (C4) with reduced velocity
-            } else if(isHalfBeat && halfBeatEnabled.getValue()) {
+            } else if(isHalfBeat && _halfBeatEnabled) {
                 playClick(59, 0.2f); // Play half beat click at note 59 (B3) with lower velocity
             }
         }
 
-    protected:
-
-      void setVolume(float newVolume) {
-            volume.setValue(newVolume);
+        void setVolume(float newVolume) {
+            _volume = newVolume;
             clickGainNode->gain()->setValue(newVolume);
-      }
+        }
+        void setEnabled(bool enabled) {
+            _enabled = enabled;
+            clickGainNode->gain()->setValue(enabled ? _volume : 0.0f);
+        }
+        void setHalfBeatEnabled(bool enabled) {
+            _halfBeatEnabled = enabled;
+        }
+
+    protected:
+        bool _enabled = true; // Metronome enabled state
+        bool _halfBeatEnabled = false; // Half beat enabled state
+        float _volume = 1.0f; // Volume of the metronome
+      
 };

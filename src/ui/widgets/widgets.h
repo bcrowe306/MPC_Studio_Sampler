@@ -3,3 +3,8 @@
 #include "text_widget.h"
 #include "ui/display.h"
 #include "knob_widget.h"
+#include "parameter_widget.h"
+#include "function_widget.h"
+#include "rectangle_widget.h"
+#include "button_widget.h"
+#include "meter_widget.h"

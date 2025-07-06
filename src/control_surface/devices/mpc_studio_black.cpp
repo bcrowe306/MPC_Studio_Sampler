@@ -1,4 +1,5 @@
 #include "mpc_studio_black.h"
+#include <cairo.h>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -149,12 +150,12 @@ void MPCStudioBlackDevice::setDisplayScreen(unsigned int pixel_count, unsigned i
 void MPCStudioBlackDevice::sendImageBuffer(cairo_surface_t *surface,
                                            unsigned int x_pos,
                                            unsigned int y_pos) {
-
+    cairo_surface_flush(surface); // Ensure the surface is up-to-date before reading data
     auto width = cairo_image_surface_get_width(surface);
     auto height = cairo_image_surface_get_height(surface);
     auto stride = cairo_image_surface_get_stride(surface);
     auto image_buffer = cairo_image_surface_get_data(surface);
-    int pixel_on_threshold = 128; // Threshold for pixel color to be considered "on"
+    int pixel_on_threshold = 120; // Threshold for pixel color to be considered "on"
 
 
     // Log the dimensions of the image
@@ -184,7 +185,10 @@ void MPCStudioBlackDevice::sendImageBuffer(cairo_surface_t *surface,
         }
         // send the encoded line to the display
         // wait for about 1ms to ensure the display is ready
-        setDisplayScreen(width, x_pos, y + y_pos, encoded_line);
+        auto start_x = x_pos;
+        auto y_pos_adjusted = y_pos + y; // Adjust y position for each row
+        // std::cout << "Line Start Position: (" << start_x << ", " << y_pos_adjusted << ")\n";
+        setDisplayScreen(width, start_x, y_pos_adjusted, encoded_line);
         encoded_line.clear(); // Clear the encoded line for the next row
     }
 }

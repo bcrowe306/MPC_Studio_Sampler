@@ -67,3 +67,42 @@
         * Transport Component
 
 
+* State object requirements
+    * Serializable
+    * Undo / Redo
+    * Listenable / Observable
+    * Hierarchical 
+* State Object Implementations
+    * The state will have child values of various types, int, bool, float, string, vector
+    * Each type must implement undo and redo
+    * Each value type must emit signal when the state changes
+    * Each value type must be serializable
+* Example Implementation sudo code
+```python
+class UndoManager:
+    pass
+
+class StringValue:
+    
+    def __init__(self, undoManager: UndoManager, value:str = ""):
+        self._undoManager:UndoManager = undoManager
+        self._listeners = []
+        self._value:str = ""
+        self.setValue(value)
+
+    def setValue(self, value):
+        self._value = value
+        self.onValueChanged(_value)
+
+    def onValueChanged(self, value):
+        for listener in self._listeners:
+            listener(value)
+
+    def undo(self, previosValue, newValue):
+        self.setValue
+    
+
+class StateObject:
+    name: StringValue = StringValue("")     
+```
+

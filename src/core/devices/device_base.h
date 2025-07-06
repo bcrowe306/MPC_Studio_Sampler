@@ -7,7 +7,6 @@
 #include "LabSound/extended/PowerMonitorNode.h"
 #include "sigslot/signal.hpp"
 #include <memory>
-#include "core/parameter.h"
 
 using std::string;
 using std::shared_ptr;
@@ -36,6 +35,5 @@ class DeviceBase {
         shared_ptr<AudioContext> _audioContext; // Audio context for the device
         std::string _name;
         std::string _type = "device"; // Default type for devices
-        StringParameter _displayName = StringParameter("display_name", ""); // Display name parameter
 
 };

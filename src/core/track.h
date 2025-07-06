@@ -3,12 +3,30 @@
 #include "LabSound/core/AudioContext.h"
 #include "core/devices/sampler_device.h"
 #include "meter_node.h"
-#include "core/parameter.h"
+#include "core/value_receiver.h"
 #include <memory>
 #include "util.h"
 
 using std::shared_ptr;
 using std::make_shared;
+
+class TrackState {
+public:
+  shared_ptr<VRString> name;  // Track name
+  shared_ptr<VRFloat> volume; // Track volume
+  shared_ptr<VRFloat> pan;    // Track pan
+  shared_ptr<VRBool> mute;    // Track mute state
+  shared_ptr<VRBool> solo;    // Track solo state
+  TrackState(shared_ptr<UndoManager> undoManager = nullptr)
+      : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
+        volume(make_shared<VRFloat>("Volume", 1.0f, 0.0, 1.0, 0.01, 0.001,
+                                    undoManager)),
+        pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f,
+                                 undoManager)),
+        mute(make_shared<VRBool>("Mute", false, undoManager)),
+        solo(make_shared<VRBool>("Solo", false, undoManager)){};
+  ~TrackState() = default;
+};
 
 class Track {
 public:
@@ -26,11 +44,6 @@ public:
 
     // Parameters for the track
     uuids::uuid id;
-    FloatParameter volume = FloatParameter("volume", 1.0f, 0.0f, 6.0f);
-    FloatParameter pan = FloatParameter("pan", 0.0f, -1.0f, 1.0f);
-    BoolParameter mute = BoolParameter("mute", false);
-    StringParameter name = StringParameter("name", "Track");
-    BoolParameter solo = BoolParameter("solo", false);
     
     Track(shared_ptr<AudioContext> ac) {
         id = generateUUID(); // Generate a unique ID for the track
@@ -49,6 +62,29 @@ public:
 
     }
 
+    void setVolume(float volume) {
+        volumeNode->gain()->setValue(static_cast<float>(volume));
+    }
+
+    void setPan(float pan) {
+        panNode->pan()->setValue(static_cast<float>(pan));
+    }
+
+    void setMute(bool mute) {
+        muteNode->gain()->setValue(mute ? 0.0f : 1.0f);
+    }
+
+    void setSolo(bool solo) {
+        // Solo logic: if solo is true, mute all other tracks
+        if (solo) {
+            // Mute all other tracks (not implemented here, would require access to all tracks)
+            // This is a placeholder for the actual implementation
+            setMute(false); // Unmute this track
+        } else {
+            setMute(true); // Mute this track if solo is turned off
+        }
+    }
+    
     void setSamplerDevice(shared_ptr<SamplerDevice> device) {
         samplerDevice = device;
         if (samplerDevice) {
@@ -60,7 +96,7 @@ public:
     }
     
     void createSamplerDevice(const std::string& filePath) {
-        samplerDevice = make_shared<SamplerDevice>(context, filePath);
+        samplerDevice = make_shared<SamplerDevice>(context);
         context->connect(input, samplerDevice->output, 0, 0);
         context->synchronizeConnections();
         onSamplerDeviceChanged();

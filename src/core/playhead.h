@@ -1,8 +1,5 @@
 #include "LabSound/LabSound.h"
 #include "timing.h"
-#include "parameter.h"
-
-
 #include <memory>
 
 using std::shared_ptr;
@@ -10,7 +7,8 @@ using std::make_shared;
 
 class Playhead{
     public:
-    
+        bool hasRunOnce = false; // Flag to check if the playhead has run
+
         shared_ptr<MidiClock> midiClock; // MIDI clock for timing
         shared_ptr<lab::FunctionNode> playheadNode; // Node representing the playhead
         shared_ptr<lab::AudioContext> audioContext; // Audio context for the playhead
@@ -19,6 +17,10 @@ class Playhead{
             playheadNode = make_shared<lab::FunctionNode>(*audioContext.get());
             midiClock = make_shared<MidiClock>(audioContext->sampleRate(), 120.0); // Initialize MidiClock with 24 PPQN and 120 BPM
             playheadNode->setFunction([this](lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
+                if (!hasRunOnce) {
+                    std::cout << "Audio Thread id: " << std::this_thread::get_id() << std::endl;
+                    hasRunOnce = true; // Set the flag to true after the first run
+                }
                 midiClock->processBlock(r.context()->sampleRate(), bufferSize);
             });
             playheadNode->start(0.0); // Start the playhead node at time 0.0

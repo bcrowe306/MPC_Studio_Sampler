@@ -1,3 +1,4 @@
+#pragma once
 #include "widget.h"
 #include <string>
 using std::string;

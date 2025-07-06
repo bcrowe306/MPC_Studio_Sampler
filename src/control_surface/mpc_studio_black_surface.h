@@ -2,7 +2,43 @@
 #include "devices/controls.h"
 #include <memory>
 #include "devices/mpc_studio_surface_def.h"
+#include "sigslot/signal.hpp"
 
+struct MultiControl {
+    sigslot::signal<int, ShortMessage &> onValue; // Signal for control value changes
+    sigslot::signal<int> onPressed; // Signal for control pressed events
+    sigslot::signal<int> onReleased; // Signal for control released events
+    sigslot::signal<int, int> onOffset; // Signal for encoder offset changes
+    sigslot::signal<int, int> onOffsetUnit; // Signal for encoder offset changes
+
+    MultiControl(vector<shared_ptr<Control>> controls, bool isEncoder = false) : isEncoder(isEncoder) {
+        for(int i = 0; i < controls.size(); ++i) {
+            controls[i]->onValue.connect([&, i](ShortMessage &msg) {
+                propagateValue(i, msg);
+            });
+        }
+    }
+
+    bool isEncoder = false;
+
+    void propagateValue(int index, ShortMessage &msg) {
+        onValue(index, msg);
+        if(msg.isNoteOn()) {
+            onPressed(index);
+        }
+        if(msg.isNoteOff()) {
+            onReleased(index);
+        }
+
+        if(isEncoder) {
+            // For encoders, we can also emit the value directly
+            auto offsetAmount = getEncoderOffsetAmount(msg.getControllerValue());
+            onOffset(index, offsetAmount);
+            onOffsetUnit(index, offsetAmount / 64);
+        }
+
+    }
+};
 
 class MPCStudioBlackControlSurface : public enable_shared_from_this<MPCStudioBlackControlSurface>{
 public:
@@ -10,7 +46,7 @@ public:
     shared_ptr<RtMidiIn> midiin = make_shared<RtMidiIn>();
     shared_ptr<MPCStudioBlackDevice> device;
 
-    // Controls
+    // Controls =============
     shared_ptr<OneColorButtonControl> playButton = make_shared<OneColorButtonControl>(PLAY_BUTTON, "Play Button");
     shared_ptr<OneColorButtonControl> stopButton = make_shared<OneColorButtonControl>(STOP_BUTTON, "Stop Button");
     shared_ptr<OneColorButtonControl> recordButton = make_shared<OneColorButtonControl>(REC_BUTTON, "Record Button");
@@ -89,12 +125,34 @@ public:
     shared_ptr<PadControl> pad14 = make_shared<PadControl>(9, PAD14, 13, "Pad 14");
     shared_ptr<PadControl> pad15 = make_shared<PadControl>(9, PAD15, 14, "Pad 15");
     shared_ptr<PadControl> pad16 = make_shared<PadControl>(9, PAD16, 15, "Pad 16");
+    // End of Controls =======================
+
+    shared_ptr<MultiControl> qlinkEncoders;
+    shared_ptr<MultiControl> qlinkEncoderTouches;
+    shared_ptr<MultiControl> pads;
+    shared_ptr<MultiControl> functionButtons;
 
 
     MPCStudioBlackControlSurface()
     {
         device = make_shared<MPCStudioBlackDevice>(midiout, midiin);
         initialize();
+        // Initialize MultiControls
+        qlinkEncoders = make_shared<MultiControl>(vector<shared_ptr<Control>>{
+            qlinkEncoder1, qlinkEncoder2, qlinkEncoder3, qlinkEncoder4
+        }, true);
+        qlinkEncoderTouches = make_shared<MultiControl>(vector<shared_ptr<Control>>{
+            qlinkTouch, qlinkEncoder2Touch, qlinkEncoder3Touch, qlinkEncoder4Touch
+        });
+        pads = make_shared<MultiControl>(vector<shared_ptr<Control>>{
+            pad1, pad2, pad3, pad4, pad5, pad6,
+            pad7, pad8, pad9, pad10, pad11, pad12,
+            pad13, pad14, pad15, pad16
+        });
+        functionButtons = make_shared<MultiControl>(vector<shared_ptr<Control>>{
+            f1Button, f2Button, f3Button, f4Button,
+            f5Button, f6Button
+        });
     };
     ~MPCStudioBlackControlSurface() = default;
 
@@ -162,6 +220,22 @@ public:
             device->registerControl(qlinkEncoder4);
             device->registerControl(qlinkEncoder4Touch);
             device->registerControl(qlinkScrollEncoder); 
+            device->registerControl(pad1);
+            device->registerControl(pad2);
+            device->registerControl(pad3);
+            device->registerControl(pad4);
+            device->registerControl(pad5);
+            device->registerControl(pad6);
+            device->registerControl(pad7);
+            device->registerControl(pad8);
+            device->registerControl(pad9);
+            device->registerControl(pad10);
+            device->registerControl(pad11);
+            device->registerControl(pad12);
+            device->registerControl(pad13);
+            device->registerControl(pad14);
+            device->registerControl(pad15);
+            device->registerControl(pad16);
         }
 
     void uninitialize(){

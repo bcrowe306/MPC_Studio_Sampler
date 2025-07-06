@@ -31,6 +31,9 @@ struct Vector {
     Vector operator-(const Vector &other) const {
         return Vector(x - other.x, y - other.y);
     }
+    void print() const {
+        printf("Vector(%u, %u)\n", x, y);
+    }
 };
 
 class Widget {
@@ -44,9 +47,8 @@ public:
 
     // Constructors
     Widget(unsigned int x, unsigned int y, unsigned int width, unsigned int height);
-    Widget(Vector position, unsigned int width, unsigned int height);
     Widget(Vector position, Vector size);
-    Widget(unsigned int width, unsigned int height);
+    
     Widget(); // Default constructor with default size
 
     virtual ~Widget() {

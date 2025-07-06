@@ -3,19 +3,21 @@
 #include "LabSound/core/AudioContext.h"
 #include "LabSound/extended/FunctionNode.h"
 #include "sigslot/signal.hpp"
+#include <algorithm>
 #include <iostream>
 #include <memory>
-#include "core/parameter.h"
 #include "core/timing.h"
 #include "core/track.h"
 #include "metronome.h"
 #include "playhead.h"
+#include "command.h"
+#include "value_receiver.h"
 #include <array>
 
 inline const int kMaxTracks = 64; // Maximum number of tracks in a project
 inline const int kMaxBusses = 8; // Maximum number of busses in a project
 
-// TODO: Create signals for the project
+
 
 
 class Project {
@@ -27,6 +29,7 @@ public:
         cueTrack = std::make_shared<Track>(audioContext);
         metronomeNode = std::make_shared<MetronomeNode>(audioContext);
         playhead = std::make_shared<Playhead>(audioContext);
+        undoManager = std::make_shared<UndoManager>(audioContext); // Initialize the undo manager
 
         playhead->midiClock->onMetronomeTick.connect(std::bind(&MetronomeNode::onMetronomeTick, metronomeNode.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
@@ -61,14 +64,15 @@ public:
     shared_ptr<AudioContext> audioContext; // Audio context for the project
     shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
     shared_ptr<Playhead> playhead; // Playhead for the project
+    shared_ptr<UndoManager> undoManager; // Undo manager for the project
 
     // Project parameters
-    StringParameter projectName = StringParameter("projectName", "Untitled Project"); // Parameter for project name
-    BoolParameter metronomeEnabled = BoolParameter("metronomeEnabled", true); // Parameter to enable/disable the metronome
-    BoolParameter returnToZero = BoolParameter("returnToZero", true); // Parameter to return to zero position when stopping playback
-    FloatParameter bpm = FloatParameter("bpm", 120.0f, 30.0f, 300.0f); // BPM parameter with range from 30 to 300
-    IntParameter timeSignatureNumerator = IntParameter("timeSignatureNumerator", 4, 1, 16); // Time signature numerator parameter
-    IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
+    VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
+    VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
+    VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
+    VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
+    VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
+    // IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
 
     void serialize() {
         // Implement serialization logic if needed
@@ -126,14 +130,32 @@ public:
     
 
 private:
+    vector<shared_ptr<class TrackState>> trackStates; // List of track states for serialization
     void _createTracks() {
             for (int i = 0; i < kMaxTracks; ++i) {
                 auto track = std::make_shared<Track>(audioContext);
-                track->name.setValue(_createNewTrackName()); // Set a new track name
+                auto trackState = make_shared<TrackState>(undoManager); // Create a new track state
+                auto trackName = _createNewTrackName();
+                trackState->name->setValue(trackName); // Set the initial track name
+                
+                // Connect listeners
+                trackState->volume->onValueChanged.connect([track](float value) {
+                    track->setVolume(value); // Set the track volume
+                });
+                trackState->pan->onValueChanged.connect([track](float value) {
+                    track->setPan(value); // Set the track pan
+                });
+                trackState->mute->onValueChanged.connect([track](bool value) {
+                    track->setMute(value); // Set the track mute state
+                });
+                trackState->solo->onValueChanged.connect([track](bool value) {
+                    track->setSolo(value); // Set the track solo state
+                });
                 audioContext->connect(
                     masterTrack->input, track->output, 0,
                     0); // Connect track output to audio context destination
-                    tracks.push_back(track);
+                tracks.push_back(track); // Add the track to the list
+                trackStates.push_back(trackState); // Add the track state to the list
             }
             audioContext->synchronizeConnections(); // Synchronize connections
     }
@@ -142,7 +164,7 @@ private:
             playhead->setBPM(value);
         });
         metronomeEnabled.onValueChanged.connect([this](bool value) {
-            metronomeNode->enabled.setValue(value);
+            metronomeNode->setEnabled(value);
         });
 
         returnToZero.onValueChanged.connect([this](bool value) {

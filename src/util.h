@@ -12,12 +12,18 @@ static inline unsigned int from_msb_lsb(unsigned char msb, unsigned char lsb) {
     return ((msb & 0x7F) << 7) | (lsb & 0x7F);
 }
 
-static inline void to_msb_lsb(unsigned int value, unsigned char &msb, unsigned char &lsb) {
-    if (value > 16383) {
-        throw std::out_of_range("Value must be between 0 and 16383 (14-bit).");
-    }
-    lsb = value & 0x7F;  // lower 7 bits
-    msb = (value >> 7) & 0x7F;  // upper 7 bits
+#include <algorithm> // for std::clamp
+#include <utility>   // for std::pair
+
+inline static std::pair<int, int> msblsb(int number) {
+    int msb = std::clamp(number / 128, 0, 127);
+    int lsb = number % 128;
+    return {msb, lsb};
+}
+
+static inline void to_msb_lsb(int value, unsigned char &msb, unsigned char &lsb) {
+    msb = std::clamp(value / 128, 0, 127);
+    lsb = value % 128;
 }
 
 static inline float midiValueToFloat(uint8_t value) {
@@ -66,3 +72,20 @@ static inline uuid GenerateFromString(string uuid_string) {
 static inline string UUIDToString(uuid id) { return uuids::to_string(id); };
 
 static inline double angleToRad(double angle) { return angle * (M_PI / 180.0); }
+
+// Function to convert ms into samples with given sample rate
+static inline int msToSamples(float ms, float sampleRate) {
+    return static_cast<int>((ms / 1000.0f) * sampleRate);
+}
+
+static inline int getEncoderOffsetAmount(uint8_t value) {
+    int seventhBit = (value & 0b1000000) >> 6;
+    int offsetAmount = (value & 0b0111111);
+    if (bool(seventhBit)) { // Convert to signed value
+        offsetAmount -= 64;
+        offsetAmount = offsetAmount; // Make it negative
+    } else {
+        offsetAmount = offsetAmount; // No change needed
+    }
+    return offsetAmount;
+}

@@ -1,3 +1,4 @@
+#pragma once
 #include "widget.h"
 #include <cairo.h>
 #include <string>

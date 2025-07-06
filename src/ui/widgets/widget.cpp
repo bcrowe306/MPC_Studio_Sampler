@@ -8,22 +8,6 @@ Widget::Widget(unsigned int x, unsigned int y, unsigned int width, unsigned int 
     this->width = width;
     this->height = height;
 }
-Widget::Widget(Vector position, unsigned int width, unsigned int height)
-    : position(position) {
-    surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
-    this->width = width;
-    this->height = height;
-    cr = cairo_create(surface);
-    
-}
-Widget::Widget(unsigned int width, unsigned int height)
-    : Widget(0, 0, width, height) {
-        this->width = width;
-        this->height = height;
-        position = Vector(0, 0); // Initialize position
-        surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
-        cr = cairo_create(surface);
-    }
 
 Widget::Widget(Vector position, Vector size)
     : Widget(position.x, position.y, size.x, size.y) {
@@ -34,14 +18,6 @@ Widget::Widget(Vector position, Vector size)
     cr = cairo_create(surface);
     }
 
-Widget::Widget() : Widget(0, 0, 360, 96) {
-    // Default constructor initializes a widget with default size
-    this->width = 360;
-    this->height = 96;
-    position = Vector(0, 0);
-    surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
-    cr = cairo_create(surface);
-} // Default constructor with default size
 
 void Widget::clear() {
     if (cr) {
@@ -119,6 +95,8 @@ void Widget::encode_surface(Vector offset) {
         int width = cairo_image_surface_get_width(surface);
         int height = cairo_image_surface_get_height(surface);
         int stride = cairo_image_surface_get_stride(surface);
+        std::cout << "Encoding surface at offset (" << offset.x << ", " << offset.y << ") with size (" 
+                  << width << "x" << height << ")" << std::endl;
 
         // Process the surface data as needed, e.g., send it to the display
         // This is a placeholder for actual encoding logic
