@@ -2,11 +2,11 @@
 #include "page.h"
 #include <string>
 
-class SequencePage : public Page {
+class MixerPage : public Page {
     // Device-specific UI elements and layout
 public:
-    SequencePage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height,
-               const std::string &title = "Sequence Page")
+    MixerPage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height,
+               const std::string &title = "Mixer Page")
         : Page(mpcSampler, x, y, width, height), _title(title) {
         render();
     }

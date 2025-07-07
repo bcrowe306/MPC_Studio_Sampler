@@ -9,6 +9,7 @@ public:
     virtual ~ButtonControl() = default;
     sigslot::signal<> onPressed; // Signal for button press events
     sigslot::signal<> onReleased; // Signal for button release events
+    bool isPressed = false;
 };
 
 class PlainButtonControl : public ButtonControl {
@@ -22,8 +23,10 @@ class PlainButtonControl : public ButtonControl {
             this->onValue.connect([this](ShortMessage& msg) {
                 if(msg.isNoteOn()) {
                     onPressed(); // Emit signal when button is pressed
+                    isPressed = true;
                 } else if(msg.isNoteOff()) {
                     onReleased(); // Emit signal when button is released
+                    isPressed = false;
                 }
             });
         }
@@ -41,8 +44,10 @@ public:
         this->onValue.connect([this](ShortMessage& msg) {
             if (msg.isNoteOn()) {
                 onPressed(); // Emit signal when button is pressed
+                isPressed = true; // Update pressed state
             } else if (msg.isNoteOff()) {
                 onReleased(); // Emit signal when button is released
+                isPressed = false; // Update pressed state
             }
         });
     }
@@ -68,8 +73,10 @@ public:
         this->onValue.connect([this](ShortMessage& msg) {
             if (msg.isNoteOn()) {
                 onPressed(); // Emit signal when button is pressed
+                isPressed = true; // Update pressed state
             } else if (msg.isNoteOff()) {
                 onReleased(); // Emit signal when button is released
+                isPressed = false; // Update pressed state
             }
         });
     }

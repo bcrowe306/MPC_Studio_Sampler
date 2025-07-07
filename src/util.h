@@ -42,7 +42,8 @@ static inline float mapFloat(float value, float inMin, float inMax, float outMin
 inline float dBToLinear(float dB) { return std::pow(10.0f, dB / 10.0f); }
 
 inline float linearToDB(float linearValue) {
-    return 10.0f * std::log10(linearValue);
+    return 20.0f * log10f(linearValue);
+    // return 10.0f * std::log10(linearValue);
 }
 
 inline float linearToPercentage(float linearValue, float maxLinearValue) {

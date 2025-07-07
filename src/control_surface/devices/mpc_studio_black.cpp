@@ -20,13 +20,18 @@ MPCStudioBlackDevice::MPCStudioBlackDevice(shared_ptr<RtMidiOut> midiOut, shared
 
 MPCStudioBlackDevice::~MPCStudioBlackDevice() {
     // Set the device back to public mode before destruction
+   close();
+}
+
+void MPCStudioBlackDevice::close(){
     switchToPublicMode();
     midiIn->cancelCallback();
     midiOut->closePort();
     midiIn->closePort();
 }
 
-void MPCStudioBlackDevice::openOutputPort() {
+    void
+    MPCStudioBlackDevice::openOutputPort() {
     auto nDevices = midiOut->getPortCount();
     for (unsigned int i = 0; i < nDevices; ++i) {
         try {

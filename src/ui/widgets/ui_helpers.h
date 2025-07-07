@@ -25,7 +25,7 @@ inline static void cairo_draw_aligned_text(cairo_t *cr, const string &text, doub
     cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, font_size);
     auto newX = x;
-    auto newY = y + font_size; // Adjust Y position to baseline
+    auto newY = y + font_size-1; // Adjust Y position to baseline
     if(alignment == "center") {
         cairo_text_extents_t extents;
         cairo_text_extents(cr, text.c_str(), &extents);
@@ -191,4 +191,18 @@ inline static void roundrect(cairo_t *cr, double x, double y, double width, doub
     cairo_arc(cr, x + width - r, y + height - r, r, 0, M_PI / 2);
     cairo_arc(cr, x + r, y + height - r, r, M_PI / 2, M_PI);
     cairo_close_path(cr);
+}
+
+
+inline static void cairo_draw_triangle(cairo_t *cr, double x, double y, double width, double height, double rotation, bool fill = false, bool color = true) {
+    cairo_set_color(cr, color);
+    cairo_move_to(cr, x + width / 2, y);
+    cairo_line_to(cr, x + width, y + height);
+    cairo_line_to(cr, x, y + height);
+    cairo_close_path(cr);
+    if (fill) {
+        cairo_fill(cr);
+    } else {
+        cairo_stroke(cr);
+    }
 }

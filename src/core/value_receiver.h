@@ -16,6 +16,11 @@ public:
     _name = name;
   }
 
+  void updateObservers() {
+    // Notify observers of the value change
+    onValueChanged(_value);
+  }
+
   void setValue(T newValue) {
     if (_value != newValue) {
 
@@ -96,6 +101,8 @@ protected:
   shared_ptr<UndoManager> undoManager_;
 };
 
+
+
 // Specialization for bool type
 // This specialization is needed because bool is not a numeric type and has different behavior
 template <>
@@ -108,6 +115,12 @@ public:
                 shared_ptr<UndoManager> undoManager = nullptr)
       : _value(initialValue), undoManager_(undoManager) {
     _name = name;
+  }
+
+
+  void updateObservers() {
+    // Notify observers of the value change
+    onValueChanged(_value);
   }
 
   void setValue(bool newValue) {
@@ -214,6 +227,11 @@ public:
     shared_ptr<UndoManager> undoManager = nullptr)
       : _value(initialValue), _min(min), _max(max), _coarseStep(coarseStep), _fineStep(fineStep), undoManager_(undoManager) {
     _name = name;
+  }
+
+  void updateObservers() {
+    // Notify observers of the value change
+    onValueChanged(_value);
   }
 
   void setValue(T newValue) {
@@ -405,6 +423,11 @@ public:
 
     size_t prevIndex = (currentIndex - 1 + _options.size()) % _options.size(); // Wrap around
     setValue(_options[prevIndex]);
+  }
+
+  void updateObservers() {
+    // Notify observers of the value change
+    onValueChanged(_value);
   }
 
   void doAction(any value) override {

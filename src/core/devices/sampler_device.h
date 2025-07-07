@@ -1,6 +1,7 @@
 #pragma once
 #include "LabSound/LabSound.h"
 #include "sigslot/signal.hpp"
+#include "audio/choc_MIDI.h"
 #include <iostream>
 #include <string>
 #include "device_base.h"
@@ -29,8 +30,16 @@ public:
         // Implement deserialization logic if needed
     }
 
-    void trigger() {
-        _samplerNode->start(0.0f); // Start playback immediately
+    void midiInput(choc::midi::ShortMessage &msg)  {
+        if(msg.isNoteOn()) {
+            if (_samplerNode) {
+                _samplerNode->start(0.0f);
+            }
+        } else if (msg.isNoteOff()) {
+            if (_samplerNode) {
+                _samplerNode->stop(0.0f); // Stop playback on note off
+            }
+        }
     }
 
     void setFilePath(const std::string &filePath) {

@@ -31,11 +31,13 @@ public:
         }
     }
     void setName(string name) {
+        if(name == _label) return; // Avoid unnecessary updates
         _label = name;
         render();
     }
 
     void setSelected(bool selected) {
+        if (selected == _selected) return; // Avoid unnecessary updates
         _selected = selected;
         render();
     }
@@ -45,7 +47,7 @@ public:
     void draw(Vector offset) override {
         // cairo_draw_rectangle(cr, position.x, position.y, width, height, true, true);
         if(_selected) {
-            cairo_draw_rounded_rectangle(cr, 4, 0, width-8, height - 1,  7, 1, false, true);
+            cairo_draw_triangle(cr, 12, (double)height/2, 3, 3, 90, true, true);
         } else {
             
         }

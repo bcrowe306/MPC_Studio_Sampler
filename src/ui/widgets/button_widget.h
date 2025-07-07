@@ -19,15 +19,19 @@ public:
         render();
     }
     void setLabel(string label) {
+        if (label == _label) return; // Avoid unnecessary updates
+        if (label.empty()) return; // Avoid empty label
         _label = label;
         render();
     }
     void setSelected(bool selected) {
+        if (selected == _selected) return; // Avoid unnecessary updates
         _selected = selected;
         render();
     }
    
     void setFontSize(int fontSize) {
+        if (fontSize == _fontSize) return; // Avoid unnecessary updates
         _fontSize = fontSize;
         render();
     }

@@ -18,6 +18,7 @@ public:
     }
 
     void setVolume(float volume) {
+        if(volume == _volume) return; // Avoid unnecessary updates
         _volume = std::clamp(volume, 0.0f, 1.0f);
         render();
     }
@@ -27,12 +28,14 @@ public:
     }
 
     void setMeters(float left, float right) {
+        if(left == _left && right == _right) return; // Avoid unnecessary updates
         _left = left;
         _right = right;
         render();
     }
 
     void setAll(float volume, float left, float right) {
+        if(volume == _volume && left == _left && right == _right) return; // Avoid unnecessary updates
         _volume = std::clamp(volume, 0.0f, 1.0f);
         _left = left;
         _right = right;

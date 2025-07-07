@@ -55,16 +55,18 @@
 
 * ControlSurface
     * Build out Component Class with Disconnectable slots
-    * Build out controls
-        * Button control
-        * Slider control
-        * Encoder conrtol
-        * Pad Control
+   
     * Build Components
-        * Session Component
-        * Notes/Performance Component
-        * Mixer Component
+        * Session Component: Each pad selects and plays a track
+        * Notes/Performance Component: Pads are split across keyboard, or sliced sample. This is where chords, scaled, and progressions are playable
+        * Mixer Component: Pads help to perform mixing
         * Transport Component
+        * ScreenControls Components: These are the components that are synced to the screen page, qlinks, function buttons, scroll qlink, data and navigation all follow the screen
+            * devicePage
+            * sequencerPage
+            * ...
+    * Build modes to bring in and out active components
+    
 
 
 * State object requirements

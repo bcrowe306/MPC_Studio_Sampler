@@ -6,7 +6,7 @@
 #include "core/value_receiver.h"
 #include <memory>
 #include "util.h"
-
+#include "audio/choc_MIDI.h"
 using std::shared_ptr;
 using std::make_shared;
 
@@ -97,6 +97,7 @@ public:
     
     void createSamplerDevice(const std::string& filePath) {
         samplerDevice = make_shared<SamplerDevice>(context);
+        samplerDevice->setFilePath(filePath); // Set the file path for the sampler device
         context->connect(input, samplerDevice->output, 0, 0);
         context->synchronizeConnections();
         onSamplerDeviceChanged();
@@ -112,6 +113,11 @@ public:
         // Implement deserialization logic if needed
     }
 
+    void midiInput(choc::midi::ShortMessage &msg) {
+        if (samplerDevice) {
+            samplerDevice->midiInput(msg); // Forward MIDI input to the sampler device
+        }
+    }
 private:
     bool _isEmpty = true; // Track if the track is empty
     shared_ptr<SamplerDevice> samplerDevice; // Device associated with the track, if any

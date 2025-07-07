@@ -26,6 +26,7 @@ public:
     void sendSysExMessage(const std::vector<unsigned char> &message);
     void switchToPrivateMode();
     void switchToPublicMode();
+    void close();
  
     void setDisplayScreen(unsigned int pixel_count, unsigned int x, unsigned int y, vector<unsigned char> &pixel_data);
 

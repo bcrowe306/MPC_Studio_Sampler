@@ -1,28 +1,35 @@
+#pragma once
+#include "control_surface/controls/control.h"
 #include "devices/mpc_studio_black.h"
 #include "devices/controls.h"
 #include <memory>
 #include "devices/mpc_studio_surface_def.h"
+#include "core/mpc_sampler.h"
 #include "sigslot/signal.hpp"
 
+class Component; // Forward declaration of Component class
+
 struct MultiControl {
-    sigslot::signal<int, ShortMessage &> onValue; // Signal for control value changes
+    sigslot::signal<int, ShortMessage &> onMidiIn; // Signal for control value changes
     sigslot::signal<int> onPressed; // Signal for control pressed events
     sigslot::signal<int> onReleased; // Signal for control released events
     sigslot::signal<int, int> onOffset; // Signal for encoder offset changes
     sigslot::signal<int, int> onOffsetUnit; // Signal for encoder offset changes
+    vector<shared_ptr<Control>> controls; // Vector of controls in the multi-control
 
     MultiControl(vector<shared_ptr<Control>> controls, bool isEncoder = false) : isEncoder(isEncoder) {
         for(int i = 0; i < controls.size(); ++i) {
             controls[i]->onValue.connect([&, i](ShortMessage &msg) {
                 propagateValue(i, msg);
             });
+            this->controls.push_back(controls[i]);
         }
     }
 
     bool isEncoder = false;
 
     void propagateValue(int index, ShortMessage &msg) {
-        onValue(index, msg);
+        onMidiIn(index, msg);
         if(msg.isNoteOn()) {
             onPressed(index);
         }
@@ -44,7 +51,9 @@ class MPCStudioBlackControlSurface : public enable_shared_from_this<MPCStudioBla
 public:
     shared_ptr<RtMidiOut> midiout = make_shared<RtMidiOut>();
     shared_ptr<RtMidiIn> midiin = make_shared<RtMidiIn>();
+    shared_ptr<MPCSampler> mpcSampler;
     shared_ptr<MPCStudioBlackDevice> device;
+    shared_ptr<Component> sessionComponent; // Session component for handling pad events
 
     // Controls =============
     shared_ptr<OneColorButtonControl> playButton = make_shared<OneColorButtonControl>(PLAY_BUTTON, "Play Button");
@@ -125,19 +134,22 @@ public:
     shared_ptr<PadControl> pad14 = make_shared<PadControl>(9, PAD14, 13, "Pad 14");
     shared_ptr<PadControl> pad15 = make_shared<PadControl>(9, PAD15, 14, "Pad 15");
     shared_ptr<PadControl> pad16 = make_shared<PadControl>(9, PAD16, 15, "Pad 16");
-    // End of Controls =======================
-
     shared_ptr<MultiControl> qlinkEncoders;
     shared_ptr<MultiControl> qlinkEncoderTouches;
     shared_ptr<MultiControl> pads;
     shared_ptr<MultiControl> functionButtons;
+    // End of Controls =======================
+    
 
-
-    MPCStudioBlackControlSurface()
+    // Constructor
+    // ============================
+    MPCStudioBlackControlSurface(shared_ptr<MPCSampler> mpcSampler) : mpcSampler(mpcSampler)
     {
         device = make_shared<MPCStudioBlackDevice>(midiout, midiin);
         initialize();
+        
         // Initialize MultiControls
+        std::cout << "==============================HERE=============================\n";
         qlinkEncoders = make_shared<MultiControl>(vector<shared_ptr<Control>>{
             qlinkEncoder1, qlinkEncoder2, qlinkEncoder3, qlinkEncoder4
         }, true);
@@ -153,6 +165,7 @@ public:
             f1Button, f2Button, f3Button, f4Button,
             f5Button, f6Button
         });
+        
     };
     ~MPCStudioBlackControlSurface() = default;
 

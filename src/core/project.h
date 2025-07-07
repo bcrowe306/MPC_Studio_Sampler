@@ -13,12 +13,26 @@
 #include "command.h"
 #include "value_receiver.h"
 #include <array>
+#include <vector>
 
 inline const int kMaxTracks = 64; // Maximum number of tracks in a project
 inline const int kMaxBusses = 8; // Maximum number of busses in a project
 
+enum class DisplayPages {
+    DevicePage, // Page for device-specific controls
+    PerformPage, // Page for performance controls
+    SequencePage, // Page for sequence editing
+    ArrangerPage, // Page for arranging sequences and clips
+    MixerPage, // Page for mixing and audio routing
+    BrowserPage, // Page for browsing samples and instruments
+    ProjectPage, // Page for project management
+    SettingsPage, // Page for settings and configurations
+ };
 
-
+//  String representation of display pages
+inline const std::vector<std::string> kDisplayPageNames = {
+    "devicePage", "performPage", "sequencePage", "arrangerPage",
+    "mixerPage",  "browserPage", "projectPage",  "settingsPage"};
 
 class Project {
 public:
@@ -68,6 +82,8 @@ public:
 
     // Project parameters
     VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
+    ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>(
+        "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
     VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
     VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
     VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
@@ -88,6 +104,14 @@ public:
         return tracks;
     }
 
+    int getMaxTracks() const {
+        return kMaxTracks; // Return the maximum number of tracks
+    }
+
+    int getMaxBusses() const {
+        return kMaxBusses; // Return the maximum number of busses
+    }
+
     shared_ptr<Track> selectTrack(int index) {
         if (index < 0 || index >= static_cast<int>(tracks.size())) {
             std::cerr << "Invalid track index: " << index << std::endl;
@@ -103,6 +127,12 @@ public:
             return nullptr; // No track selected
         }
         return tracks[_selectedTrackIndex];
+    }
+    shared_ptr<TrackState> selectedTrackState() const {
+        if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(trackStates.size())) {
+            return nullptr; // No track state selected
+        }
+        return trackStates[_selectedTrackIndex];
     }
 
     int selectedTrackIndex() const {
@@ -134,6 +164,7 @@ private:
     void _createTracks() {
             for (int i = 0; i < kMaxTracks; ++i) {
                 auto track = std::make_shared<Track>(audioContext);
+                track->createSamplerDevice("/Users/brandoncrowe/Documents/Audio Samples/DECAP - Drums That Knock X/Hihats/DECAP hihat 219 crich.wav");
                 auto trackState = make_shared<TrackState>(undoManager); // Create a new track state
                 auto trackName = _createNewTrackName();
                 trackState->name->setValue(trackName); // Set the initial track name
@@ -158,18 +189,25 @@ private:
                 trackStates.push_back(trackState); // Add the track state to the list
             }
             audioContext->synchronizeConnections(); // Synchronize connections
+            selectTrack(0); // Select the first track by default
     }
     void _connectParams (){
         bpm.onValueChanged.connect([this](float value) {
             playhead->setBPM(value);
         });
+        bpm.updateObservers(); // Ensure initial value is set
+
         metronomeEnabled.onValueChanged.connect([this](bool value) {
             metronomeNode->setEnabled(value);
         });
+        metronomeEnabled.updateObservers(); // Ensure initial value is set
 
         returnToZero.onValueChanged.connect([this](bool value) {
             playhead->setReturnToZero(value);
         });
+
+        displayPage.updateObservers();
+
     }
 
     int _getNextTrackIndex() {
