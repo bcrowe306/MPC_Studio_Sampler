@@ -1,7 +1,6 @@
 #pragma once
 #include "control_surface/controls/control.h"
 #include "devices/mpc_studio_black.h"
-#include "devices/controls.h"
 #include <memory>
 #include "devices/mpc_studio_surface_def.h"
 #include "core/mpc_sampler.h"
@@ -10,6 +9,7 @@
 class Component; // Forward declaration of Component class
 
 struct MultiControl {
+    std::string name;
     sigslot::signal<int, ShortMessage &> onMidiIn; // Signal for control value changes
     sigslot::signal<int> onPressed; // Signal for control pressed events
     sigslot::signal<int> onReleased; // Signal for control released events
@@ -17,18 +17,21 @@ struct MultiControl {
     sigslot::signal<int, int> onOffsetUnit; // Signal for encoder offset changes
     vector<shared_ptr<Control>> controls; // Vector of controls in the multi-control
 
-    MultiControl(vector<shared_ptr<Control>> controls, bool isEncoder = false) : isEncoder(isEncoder) {
-        for(int i = 0; i < controls.size(); ++i) {
-            controls[i]->onValue.connect([&, i](ShortMessage &msg) {
+    MultiControl(std::string name, vector<shared_ptr<Control>> controlsVector, bool isEncoder = false) : name(name), isEncoder(isEncoder) {
+        for(int i = 0; i < controlsVector.size(); ++i) {
+            std::cout << "Propagating value for " << name << " at index: " << i << "\n";
+            controlsVector[i]->onValue.connect([&, i](ShortMessage &msg) {
+               
                 propagateValue(i, msg);
             });
-            this->controls.push_back(controls[i]);
+            this->controls.push_back(controlsVector[i]);
         }
     }
 
     bool isEncoder = false;
 
     void propagateValue(int index, ShortMessage &msg) {
+        
         onMidiIn(index, msg);
         if(msg.isNoteOn()) {
             onPressed(index);
@@ -148,23 +151,7 @@ public:
         device = make_shared<MPCStudioBlackDevice>(midiout, midiin);
         initialize();
         
-        // Initialize MultiControls
-        std::cout << "==============================HERE=============================\n";
-        qlinkEncoders = make_shared<MultiControl>(vector<shared_ptr<Control>>{
-            qlinkEncoder1, qlinkEncoder2, qlinkEncoder3, qlinkEncoder4
-        }, true);
-        qlinkEncoderTouches = make_shared<MultiControl>(vector<shared_ptr<Control>>{
-            qlinkTouch, qlinkEncoder2Touch, qlinkEncoder3Touch, qlinkEncoder4Touch
-        });
-        pads = make_shared<MultiControl>(vector<shared_ptr<Control>>{
-            pad1, pad2, pad3, pad4, pad5, pad6,
-            pad7, pad8, pad9, pad10, pad11, pad12,
-            pad13, pad14, pad15, pad16
-        });
-        functionButtons = make_shared<MultiControl>(vector<shared_ptr<Control>>{
-            f1Button, f2Button, f3Button, f4Button,
-            f5Button, f6Button
-        });
+        
         
     };
     ~MPCStudioBlackControlSurface() = default;
@@ -249,6 +236,23 @@ public:
             device->registerControl(pad14);
             device->registerControl(pad15);
             device->registerControl(pad16);
+
+            // Initialize MultiControls
+
+            qlinkEncoders = make_shared<MultiControl>(
+                "qlinkEncoders", vector<shared_ptr<Control>>{
+                    qlinkEncoder1, qlinkEncoder2, qlinkEncoder3, qlinkEncoder4},
+                true);
+            qlinkEncoderTouches =
+                make_shared<MultiControl>("qlinkEncoderTouches", vector<shared_ptr<Control>>{
+                    qlinkTouch, qlinkEncoder2Touch, qlinkEncoder3Touch,
+                    qlinkEncoder4Touch});
+            pads = make_shared<MultiControl>("pads", vector<shared_ptr<Control>>{
+                pad1, pad2, pad3, pad4, pad5, pad6, pad7, pad8, pad9, pad10,
+                pad11, pad12, pad13, pad14, pad15, pad16});
+            functionButtons = make_shared<MultiControl>("functionButtons",
+                vector<shared_ptr<Control>>{f1Button, f2Button, f3Button,
+                                            f4Button, f5Button, f6Button});
         }
 
     void uninitialize(){

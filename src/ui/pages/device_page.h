@@ -24,8 +24,9 @@ public:
     shared_ptr<WaveformSection> waveformSection;
     DevicePage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height,
                const std::string &title = "Device Page")
-        : Page(mpcSampler, x, y, width, height), _title(title)
+        : Page(mpcSampler, x, y, width, height)
     {
+        _title = title;
         createWidgets();
         addObservers();
         render();
@@ -80,12 +81,20 @@ public:
         
     }
 
+    void onFrame() override {
+        auto track = mpcSampler->project->selectedTrack();
+        if (track) {
+            auto levelMeters = track->getLevelMeters();
+            meterWidget->setMeters(levelMeters.left, levelMeters.right);
+        }
+    }
+
     void onTrackSelected(int trackIndex = -1) {
         auto index = mpcSampler->project->selectedTrackIndex();
         if (index != -1) {
-            auto trackState = mpcSampler->project->selectedTrackState();
-            if (trackState) {
-                headerSection->setRightText(trackState->name->getValue());
+            auto track = mpcSampler->project->selectedTrack();
+            if (track) {
+                headerSection->setRightText(track->name->getValue());
             }
         } else {
             headerSection->setRightText("No Track");
@@ -95,7 +104,5 @@ public:
     void draw(Vector offset) override {
        
     }
-protected:
-    std::string _title;
     
 };

@@ -7,16 +7,19 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "sigslot/signal.hpp"
 using std::shared_ptr;
 using std::unordered_map;
 using std::string;
 
 class Display {
 public:
-    unordered_map<string, shared_ptr<Widget>> pages;
+    unordered_map<string, shared_ptr<Page>> pages;
+    unordered_map<string, sigslot::connection> pageConnections;
     EncodeSurfaceCallback encode_surface_callback;
     shared_ptr<MPCSampler> mpcSampler;
     string current_page;
+    sigslot::signal<> onFrame;
     Display(shared_ptr<MPCSampler> mpcSampler, EncodeSurfaceCallback encode_surface_callback) 
         : mpcSampler(mpcSampler), encode_surface_callback(encode_surface_callback), current_page("") {
         // Initialize the display with an empty set of pages
@@ -40,12 +43,12 @@ public:
         show_page(initialPage);
     }
 
-    void add_page(const string &name, shared_ptr<Widget> page) {
+    void add_page(const string &name, shared_ptr<Page> page) {
         if (page) {
             pages[name] = page;
         }
     }
-    shared_ptr<Widget> get_page(const string &name) {
+    shared_ptr<Page> get_page(const string &name) {
         auto it = pages.find(name);
         if (it != pages.end()) {
             return it->second;
@@ -60,10 +63,14 @@ public:
         }
         for(auto &[page_name, page] : pages) {
             if(page_name == name) {
+
+                // Connect onFrame signal to the page's onFrame method
+                pageConnections[page_name] = onFrame.connect(std::bind(&Page::onFrame, page.get()));
                 page->activate();
                 current_page = name;
                 page->render();
             } else {
+                pageConnections[page_name].disconnect();
                 page->deactivate();
             }
         }

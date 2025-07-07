@@ -62,8 +62,8 @@ public:
                 onReleased(); // Emit signal when button is released
                 isPressed = false; // Update pressed state
             }
+            onPlay(msg); // Emit the play signal with the MIDI message
         });
-        sigslot::connect(onValue, onPlay); // Connect the onValue signal to the onPlay signal
     }
 
     void sendColor(PAD_COLOR color) {

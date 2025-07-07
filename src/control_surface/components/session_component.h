@@ -51,6 +51,7 @@ public:
 
     void onPadsPlay(int index, choc::midi::ShortMessage &msg) {
         int trackToPlay = index + trackBankIndex * 16; // Calculate the track index based on the pad index and bank
+        
         auto track = mpcSampler->project->getTracks()[trackToPlay]; // Get the track from the project
         if (track) {
             track->midiInput(msg); // Forward the MIDI message to the track

@@ -27,6 +27,8 @@ typedef sigslot::signal<> Signal; // Define a signal type for convenience
 class Component {
 public:
     string name = "Component"; // Name of the component
+    Signal beforeActivate; // Signal emitted before the component is activated
+    Signal beforeDeactivate; // Signal emitted before the component is deactivated
     Signal onActivate; // Signal emitted when the component is activated
     Signal onDeactivate; // Signal emitted when the component is deactivated
     vector<sigslot::connection> controlConnections; // Store connections for controls
@@ -40,15 +42,14 @@ public:
 
     virtual ~Component() = default;
     void activate() {
-       
-        std::cout << "Component activated.\n";
+        beforeActivate(); // Emit the beforeActivate signal
         _isActive = true;
 
         onActivateComponent();
         onActivate(); // Emit the activation signal
     };
     void deactivate() {
-        std::cout << "Component deactivated.\n";
+        beforeDeactivate(); // Emit the beforeDeactivate signal
         for(auto &conn : controlConnections) {
             conn.disconnect(); // Disconnect all control connections
         }

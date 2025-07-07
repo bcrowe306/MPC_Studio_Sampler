@@ -39,8 +39,8 @@ public:
     Project(std::shared_ptr<AudioContext> audioContext) {
         // Initialize the project with an empty track list
         this->audioContext = audioContext;
-        masterTrack = std::make_shared<Track>(audioContext);
-        cueTrack = std::make_shared<Track>(audioContext);
+        masterTrack = std::make_shared<TrackNode>(audioContext);
+        cueTrack = std::make_shared<TrackNode>(audioContext);
         metronomeNode = std::make_shared<MetronomeNode>(audioContext);
         playhead = std::make_shared<Playhead>(audioContext);
         undoManager = std::make_shared<UndoManager>(audioContext); // Initialize the undo manager
@@ -73,8 +73,8 @@ public:
     sigslot::signal<bool> onIsRecording; // Signal emitted when recording starts
 
     // Public members
-    shared_ptr<Track> masterTrack;
-    shared_ptr<Track> cueTrack; // Cue track for the project
+    shared_ptr<TrackNode> masterTrack;
+    shared_ptr<TrackNode> cueTrack; // Cue track for the project
     shared_ptr<AudioContext> audioContext; // Audio context for the project
     shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
     shared_ptr<Playhead> playhead; // Playhead for the project
@@ -128,12 +128,6 @@ public:
         }
         return tracks[_selectedTrackIndex];
     }
-    shared_ptr<TrackState> selectedTrackState() const {
-        if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(trackStates.size())) {
-            return nullptr; // No track state selected
-        }
-        return trackStates[_selectedTrackIndex];
-    }
 
     int selectedTrackIndex() const {
         return _selectedTrackIndex;
@@ -160,33 +154,17 @@ public:
     
 
 private:
-    vector<shared_ptr<class TrackState>> trackStates; // List of track states for serialization
     void _createTracks() {
             for (int i = 0; i < kMaxTracks; ++i) {
-                auto track = std::make_shared<Track>(audioContext);
+                auto track = std::make_shared<Track>(audioContext, undoManager); // Create a new track
                 track->createSamplerDevice("/Users/brandoncrowe/Documents/Audio Samples/DECAP - Drums That Knock X/Hihats/DECAP hihat 219 crich.wav");
-                auto trackState = make_shared<TrackState>(undoManager); // Create a new track state
-                auto trackName = _createNewTrackName();
-                trackState->name->setValue(trackName); // Set the initial track name
-                
-                // Connect listeners
-                trackState->volume->onValueChanged.connect([track](float value) {
-                    track->setVolume(value); // Set the track volume
-                });
-                trackState->pan->onValueChanged.connect([track](float value) {
-                    track->setPan(value); // Set the track pan
-                });
-                trackState->mute->onValueChanged.connect([track](bool value) {
-                    track->setMute(value); // Set the track mute state
-                });
-                trackState->solo->onValueChanged.connect([track](bool value) {
-                    track->setSolo(value); // Set the track solo state
-                });
+                (*track->name.get()) = _createNewTrackName();
+
+               
                 audioContext->connect(
-                    masterTrack->input, track->output, 0,
+                    masterTrack->input, track->getOutput(), 0,
                     0); // Connect track output to audio context destination
                 tracks.push_back(track); // Add the track to the list
-                trackStates.push_back(trackState); // Add the track state to the list
             }
             audioContext->synchronizeConnections(); // Synchronize connections
             selectTrack(0); // Select the first track by default

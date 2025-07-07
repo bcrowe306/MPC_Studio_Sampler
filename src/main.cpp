@@ -12,13 +12,14 @@
 using std::shared_ptr;
 using std::make_shared;
 
-static void applicationLoop(std::atomic<bool> &running, shared_ptr<MPCSampler> mpc_sampler, shared_ptr<MPCStudioBlackControlSurface> controlSurface) {
+static void applicationLoop(std::atomic<bool> &running, shared_ptr<MPCSampler> mpc_sampler, shared_ptr<MPCStudioBlackControlSurface> controlSurface, shared_ptr<Display> display) {
     // Application loop
     while (running.load()) {
         if (mpc_sampler->project->undoManager->hasFlushableCommands.load(std::memory_order_acquire)) {
             mpc_sampler->project->undoManager->flushToUndoStack();
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(80));
+        display->onFrame(); // Call the display's onFrame method to update the UI
+        std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
 }
 
@@ -28,7 +29,6 @@ int main(int, char **) {
 
     // MPC Sampler - Audio and engine backend
     shared_ptr<MPCSampler> mpc_sampler = make_shared<MPCSampler>();
-    mpc_sampler->initialize();
 
      // Control Surface - MPC Studio Black Midi device
      shared_ptr<MPCStudioBlackControlSurface> controlSurface = build_surface(mpc_sampler);
@@ -39,7 +39,7 @@ int main(int, char **) {
 
     // Launch the application loop in a separate thread. need boolean flag to control the loop
     std::atomic<bool> running(true);
-    std::thread appThread(applicationLoop, std::ref(running), mpc_sampler, controlSurface);
+    std::thread appThread(applicationLoop, std::ref(running), mpc_sampler, controlSurface, display);
 
     
 

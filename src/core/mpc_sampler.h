@@ -11,7 +11,9 @@ using std::make_shared;
 // Main class for the Sampler/Sequencer
 class MPCSampler{
 public:
-    MPCSampler(){};
+    MPCSampler(){
+        initialize(); // Initialize the sampler when created
+    };
     ~MPCSampler(){
         uninitialize(); // Clean up resources when the sampler is destroyed
     };

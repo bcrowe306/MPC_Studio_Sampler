@@ -35,6 +35,21 @@ public:
     }
   }
 
+  // Override the = operator to set the value and emit signals
+  ValueReceiver<T> &operator=(const T &value) {
+    setValue(value); // Set the value and emit signals
+    return *this; // Return the current instance
+  }
+
+
+  // Overload the copy assignment operator
+  ValueReceiver<T> &operator=(const ValueReceiver<T> &other) {
+    if (this != &other) {
+      setValue(other.getValue()); // Set the value and emit signals
+    }
+    return *this; // Return the current instance
+  }
+
   T getValue() const { return any_cast<T>(_value); }
 
   void incrementValue(bool isCoarse) {
@@ -135,6 +150,12 @@ public:
         doAction(newValue);
       }
     }
+  }
+
+  // Override the = operator to set the value and emit signals
+  ValueReceiver<bool> &operator=(const bool &value) {
+    setValue(value); // Set the value and emit signals
+    return *this; // Return the current instance
   }
 
   bool getValue() const { return any_cast<bool>(_value); }
@@ -246,6 +267,12 @@ public:
         doAction(newValue);
       }
     }
+  }
+
+  // Override the = operator to set the value and emit signals
+  ValueReceiver<T> &operator=(const T &value) {
+    setValue(value); // Set the value and emit signals
+    return *this; // Return the current instance
   }
 
   T getValue() const { return any_cast<T>(_value); }
@@ -385,6 +412,12 @@ public:
         doAction(newValue);
       }
     }
+  }
+
+  // Override the = operator to set the value and emit signals
+  ValueOptionsReceiver<T> &operator=(const T &value) {
+    setValue(value); // Set the value and emit signals
+    return *this; // Return the current instance
   }
 
   T getValue() const { return any_cast<T>(_value); }
