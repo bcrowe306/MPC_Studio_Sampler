@@ -68,23 +68,38 @@ public:
     void updatePadColors(){
         int trackIndex = mpcSampler->project->selectedTrackIndex();
         int relativeIndex = trackIndex - trackBankIndex * 16; // Calculate the relative index within the current bank
+
         if (relativeIndex >= 0 && relativeIndex < 16) {
             for (int i = 0; i < 16; ++i) {
+                auto track = mpcSampler->project->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
                 auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[i].get());
                 if (padControl) {
                     if (i + trackBankIndex * 16 == trackIndex) {
                         padControl->sendColor(PadControl::PAD_COLOR::RED_FULL); // Highlight the selected pad
                     } else {
-                        padControl->sendColor(PadControl::PAD_COLOR::OFF); // Reset the color
+
+                        // Check if the track is empty
+                        if (track && track->isTrackEmpty()) {
+                            padControl->sendColor(PadControl::PAD_COLOR::OFF); // Indicate empty track with green
+                        } else {
+                            padControl->sendColor(PadControl::PAD_COLOR::GREEN_HALF); // Reset color if not empty
+                        }
                     }
                 }
             }
         }
         else{
             for(int i = 0; i < 16; ++i) {
+                auto track = mpcSampler->project->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
                 auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[i].get());
                 if (padControl) {
                     padControl->sendColor(PadControl::PAD_COLOR::OFF); // Reset the color if out of range
+                    // Check if the track is empty
+                    if (track && track->isTrackEmpty()) {
+                        padControl->sendColor(PadControl::PAD_COLOR::OFF); // Indicate empty track with green
+                    } else {
+                        padControl->sendColor(PadControl::PAD_COLOR::GREEN_HALF); // Reset color if not empty
+                    }
                 }
             }
         }

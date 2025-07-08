@@ -83,7 +83,7 @@ public:
     // Project parameters
     VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
     ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>(
-        "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
+        "displayPage", kDisplayPageNames[5], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
     VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
     VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
     VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
@@ -117,6 +117,9 @@ public:
             std::cerr << "Invalid track index: " << index << std::endl;
             return nullptr;
         }
+        if (_selectedTrackIndex == index) {
+            return tracks[_selectedTrackIndex]; // Return the already selected track
+        }   
         _selectedTrackIndex = index;
         onTrackSelected(index); // Emit signal that a track has been selected
         return tracks[_selectedTrackIndex];
@@ -135,12 +138,24 @@ public:
 
     void play() {
         playhead->start(); // Start the playhead
-        onIsPlaying(true); // Emit signal that playback has started
+        onIsPlaying(isPlaying()); // Emit signal that playback has started
+    }
+
+    bool isPlaying() const {
+        return playhead->isPlaying(); // Return whether the playhead is currently playing
     }
 
     void stop() {
         playhead->stop(); // Stop the playhead
         onIsPlaying(false); // Emit signal that playback has stopped
+    }
+
+    void record() {
+        // TODO: Implement recording logic
+    }
+
+    void toggleRecord() {
+        // TODO: Implement toggle record logic
     }
 
     void togglePlay() {
@@ -151,16 +166,17 @@ public:
             onIsPlaying(false); // Emit signal that playback has stopped
         }
     }
+
+    void tapTempo() {
+        // TODO: Implement tap tempo logic
+    }
     
 
 private:
     void _createTracks() {
             for (int i = 0; i < kMaxTracks; ++i) {
                 auto track = std::make_shared<Track>(audioContext, undoManager); // Create a new track
-                track->createSamplerDevice("/Users/brandoncrowe/Documents/Audio Samples/DECAP - Drums That Knock X/Hihats/DECAP hihat 219 crich.wav");
                 (*track->name.get()) = _createNewTrackName();
-
-               
                 audioContext->connect(
                     masterTrack->input, track->getOutput(), 0,
                     0); // Connect track output to audio context destination

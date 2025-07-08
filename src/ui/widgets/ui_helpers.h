@@ -206,3 +206,62 @@ inline static void cairo_draw_triangle(cairo_t *cr, double x, double y, double w
         cairo_stroke(cr);
     }
 }
+
+inline static void cairo_draw_folder_icon(cairo_t *cr, double x, double y, double width, double height, bool color = true) {
+cairo_set_color(cr, color);
+
+// Draw folder base
+double tab_height = height * 0.28;
+double tab_width = width * 0.38;
+double body_y = y + tab_height;
+double body_height = height - tab_height;
+
+// Folder tab
+cairo_move_to(cr, x, y + tab_height);
+cairo_line_to(cr, x + tab_width, y + tab_height);
+cairo_line_to(cr, x + tab_width + width * 0.12, y);
+cairo_line_to(cr, x + width * 0.7, y);
+cairo_line_to(cr, x + width, y + tab_height);
+cairo_line_to(cr, x, y + tab_height);
+cairo_close_path(cr);
+cairo_fill(cr);
+
+// Folder body
+cairo_move_to(cr, x, body_y);
+cairo_line_to(cr, x + width, body_y);
+cairo_line_to(cr, x + width, y + height);
+cairo_line_to(cr, x, y + height);
+cairo_close_path(cr);
+cairo_fill(cr);
+}
+
+inline static void cairo_draw_wav_icon(cairo_t *cr, double x, double y, double width, double height, bool color = true) {
+    // No file rectangle, no "WAV" text, just waveform
+
+    // Draw waveform (simple sine wave)
+    cairo_set_color(cr, color);
+    double margin = width * 0.13;
+    double wave_x = x + margin;
+    double wave_y = y + height * 0.60;
+    double wave_w = width - 2 * margin;
+    double wave_h = height * 0.18;
+    int points = 18;
+    cairo_move_to(cr, wave_x, wave_y);
+    for (int i = 0; i <= points; ++i) {
+        double t = (double)i / points;
+        double wx = wave_x + t * wave_w;
+        double wy = wave_y - std::sin(t * 2 * M_PI) * wave_h;
+        cairo_line_to(cr, wx, wy);
+    }
+    cairo_stroke(cr);
+}
+
+inline static void cairo_draw_vertical_scrollbar(cairo_t *cr, double x, double y, double width, double height, int itemsCount, int pageSize, int offsetIndex, bool color = true) {
+    cairo_set_color(cr, color);
+    double rectHeight = static_cast<double>(height) * pageSize / itemsCount;
+    double rectY = static_cast<double>(offsetIndex) * height / itemsCount;
+    cairo_rectangle(cr, x, y + rectY, width - 2, rectHeight);
+    cairo_fill(cr);
+    cairo_rectangle(cr, x + width - 2, y, 1, height);
+    cairo_stroke(cr);
+}

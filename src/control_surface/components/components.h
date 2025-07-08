@@ -1,2 +1,10 @@
 #pragma once
 #include "session_component.h"
+#include "page_component.h"
+#include "browser_component.h"
+#include "transport_component.h"
+#include "settings_component.h"
+#include "sequence_component.h"
+#include "perform_component.h"
+#include "arranger_component.h"
+#include "device_component.h"

@@ -14,14 +14,14 @@ using std::string;
 
 class Display {
 public:
-    unordered_map<string, shared_ptr<Page>> pages;
-    unordered_map<string, sigslot::connection> pageConnections;
+    unordered_map<string, shared_ptr<PageWidget>> pages;
+    
     EncodeSurfaceCallback encode_surface_callback;
     shared_ptr<MPCSampler> mpcSampler;
     string current_page;
     sigslot::signal<> onFrame;
     Display(shared_ptr<MPCSampler> mpcSampler, EncodeSurfaceCallback encode_surface_callback) 
-        : mpcSampler(mpcSampler), encode_surface_callback(encode_surface_callback), current_page("") {
+        : mpcSampler(mpcSampler), encode_surface_callback(encode_surface_callback){
         // Initialize the display with an empty set of pages
 
     }
@@ -43,12 +43,12 @@ public:
         show_page(initialPage);
     }
 
-    void add_page(const string &name, shared_ptr<Page> page) {
+    void add_page(const string &name, shared_ptr<PageWidget> page) {
         if (page) {
             pages[name] = page;
         }
     }
-    shared_ptr<Page> get_page(const string &name) {
+    shared_ptr<PageWidget> get_page(const string &name) {
         auto it = pages.find(name);
         if (it != pages.end()) {
             return it->second;
@@ -59,22 +59,26 @@ public:
     void show_page(const string &name) {
         // show page by name and activating it. only one page can be active at a time
         if (current_page == name) {
+
             return; // Already showing this page
         }
         for(auto &[page_name, page] : pages) {
             if(page_name == name) {
 
                 // Connect onFrame signal to the page's onFrame method
-                pageConnections[page_name] = onFrame.connect(std::bind(&Page::onFrame, page.get()));
+                _pageConnections[page_name] = onFrame.connect(std::bind(&PageWidget::onFrame, page.get()));
                 page->activate();
                 current_page = name;
                 page->render();
             } else {
-                pageConnections[page_name].disconnect();
+                _pageConnections[page_name].disconnect();
                 page->deactivate();
             }
         }
     }
+protected:
+    unordered_map<string, sigslot::scoped_connection> _pageConnections; // Connections for each page's onFrame signal
+
 };
 
 
@@ -82,9 +86,21 @@ static inline shared_ptr<Display> create_display(shared_ptr<MPCSampler> mpcSampl
     auto display = std::make_shared<Display>(mpcSampler, encode_surface_callback);
     auto devicePage = make_shared<DevicePage>(mpcSampler, 0, 0, 360, 96);
     auto sequencePage = make_shared<SequencePage>(mpcSampler, 0, 0, 360, 96);
+    auto arrangerPage = make_shared<ArrangerPage>(mpcSampler, 0, 0, 360, 96);
+    auto projectPage = make_shared<ProjectPage>(mpcSampler, 0, 0, 360, 96);
+    auto mixerPage = make_shared<MixerPage>(mpcSampler, 0, 0, 360, 96);
+    auto performPage = make_shared<PerformPage>(mpcSampler, 0, 0, 360, 96);
+    auto browserPage = make_shared<BrowserPage>(mpcSampler, 0, 0, 360, 96);
+    auto settingsPage = make_shared<SettingsPage>(mpcSampler, 0, 0, 360, 96);
 
     display->add_page("devicePage", devicePage);
     display->add_page("sequencePage", sequencePage);
+    display->add_page("arrangerPage", arrangerPage);
+    display->add_page("projectPage", projectPage);
+    display->add_page("mixerPage", mixerPage);
+    display->add_page("performPage", performPage);
+    display->add_page("browserPage", browserPage);
+    display->add_page("settingsPage", settingsPage);
     display->initialize();
     return display;
 }

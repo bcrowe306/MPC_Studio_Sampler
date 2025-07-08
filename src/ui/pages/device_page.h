@@ -1,16 +1,18 @@
 #pragma once
 #include "ui/widgets/widgets.h"
-#include "ui/pages/page.h"
+#include "ui/pages/page_widget.h"
 #include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
+#include "fmt/format.h"
+#include "util.h"
 
 using std::shared_ptr;
 using std::make_shared;
 using std::vector;
 
-class DevicePage : public Page {
+class DevicePage : public PageWidget {
     // Device-specific UI elements and layout
 public:
     vector<shared_ptr<FunctionWidget>> functionWidgets;
@@ -24,12 +26,11 @@ public:
     shared_ptr<WaveformSection> waveformSection;
     DevicePage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height,
                const std::string &title = "Device Page")
-        : Page(mpcSampler, x, y, width, height)
+        : PageWidget(mpcSampler, x, y, width, height)
     {
         _title = title;
         createWidgets();
         addObservers();
-        render();
     }
 
     ~DevicePage() override {
@@ -45,7 +46,7 @@ public:
           functionWidgets.push_back(functionWidget);
           this->add_child(functionWidget);
         }
-        std::cout << "functionWidgets: " << functionWidgets.size() << "\n";
+
         for (int i = 0; i < 4; i++) {
           auto parameterWidget = make_shared<ParameterWidget>(
               i * 60 + 60, 46, 60, 39, 0.5f, fmt::format("Param {}", i + 1),
@@ -85,7 +86,8 @@ public:
         auto track = mpcSampler->project->selectedTrack();
         if (track) {
             auto levelMeters = track->getLevelMeters();
-            meterWidget->setMeters(levelMeters.left, levelMeters.right);
+            float minDb = -60.0f;
+            meterWidget->setMeters(mapFloat(levelMeters.left, minDb, 0.0f, 0.0f, 1.0f), mapFloat(levelMeters.right, minDb, 0.0f, 0.0f, 1.0f));
         }
     }
 
@@ -94,11 +96,19 @@ public:
         if (index != -1) {
             auto track = mpcSampler->project->selectedTrack();
             if (track) {
-                headerSection->setRightText(track->name->getValue());
+                headerSection->rightTextWidget->set_text(track->name->getValue());
             }
         } else {
-            headerSection->setRightText("No Track");
+            headerSection->rightTextWidget->set_text("No Track");
         }
+        // set the waveform data for the waveform section
+        auto waveformData = mpcSampler->project->selectedTrack()->getWaveformData();
+        if (waveformData) {
+            waveformSection->setWaveformData(waveformData);
+        } else {
+            waveformSection->setWaveformData(nullptr); // Clear waveform data if no track is selected
+        }
+
     }
 
     void draw(Vector offset) override {

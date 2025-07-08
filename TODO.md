@@ -29,6 +29,12 @@
     * Busses
     * Metering
     * Waveform generation
+        * Have the basics
+        * Implement zooming and windowing
+    * File Loading
+        * Think about loading files on another thread to not block ui thread
+    * Threading / thread pools
+        * need to think about thread pools to accomplish tasks that can't block.
 
 * Display
     * Build basic widgets in Cairo

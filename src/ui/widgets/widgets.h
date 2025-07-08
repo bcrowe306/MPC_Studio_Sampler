@@ -7,5 +7,7 @@
 #include "rectangle_widget.h"
 #include "button_widget.h"
 #include "meter_widget.h"
+#include "vertical_scrollbar_widget.h"
 #include "ui/sections/header_section.h"
 #include "ui/sections/waveform_section.h"
+#include "ui/sections/titlebar_section.h"

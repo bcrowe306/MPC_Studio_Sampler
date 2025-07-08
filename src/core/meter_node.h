@@ -41,15 +41,15 @@ public:
     std::array<float, 6> rmsDbLinear();
 
   private:
-    std::array<float, 6> _rmsDb = {-72.f, -72.f, -72.f, -72.f, -72.f, -72.f};
+    std::array<float, 6> _rmsDb = {-60.f, -60.f, -60.f, -60.f, -60.f, -60.f};
     std::array<float, 6> _rmsDbLinear;
-    std::array<float, 6> _db = {-72.f, -72.f, -72.f, -72.f, -72.f, -72.f};
+    std::array<float, 6> _db = {-60.f, -60.f, -60.f, -60.f, -60.f, -60.f};
     std::array<float, 6> _dbLinear;
     std::array<float, 6> power = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
 
     float db_decay_factor = .999995f;
     float rms_decay_factor = .999f;
-    float dB_min = -72.f;
+    float dB_min = -60.f;
     float dB_max = 0.f;
     const float kMinPower = 0.000125f;
     float applyDecay(float current_dBFS, float previous_dBFS, float decay_factor);

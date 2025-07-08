@@ -15,7 +15,27 @@ public:
 
     void draw(Vector offset) override {
         cairo_draw_rectangle(cr, 0, 0, width, height, false, true);
-        cairo_draw_text(cr, _title, 2, 10, 11);
+        if (_waveformData && !_waveformData->empty()) {
+            size_t numSamples = _waveformData->size();
+            float xStep = static_cast<float>(width) / numSamples;
+            float centerY = height / 2.0f;
+            float halfHeight = height / 2.0f;
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                float value = (*_waveformData)[i];
+                float x = i * xStep;
+                float y1 = centerY - value * halfHeight;
+                float y2 = centerY + value * halfHeight;
+                cairo_move_to(cr, x, y1);
+                cairo_line_to(cr, x, y2);
+            }
+            cairo_set_source_rgb(cr, 1, 1, 1.0); // waveform color
+            cairo_stroke(cr);
+        }
+    }
+    void setWaveformData(std::vector<float> *data) {
+        _waveformData = data;
+        render();
     }
     void setTitle(const std::string &title) {
         _title = title;
@@ -23,4 +43,5 @@ public:
     }
 protected:
     std::string _title;
+    std::vector<float> *_waveformData;
 };

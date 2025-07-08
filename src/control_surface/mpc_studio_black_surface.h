@@ -8,48 +8,6 @@
 
 class Component; // Forward declaration of Component class
 
-struct MultiControl {
-    std::string name;
-    sigslot::signal<int, ShortMessage &> onMidiIn; // Signal for control value changes
-    sigslot::signal<int> onPressed; // Signal for control pressed events
-    sigslot::signal<int> onReleased; // Signal for control released events
-    sigslot::signal<int, int> onOffset; // Signal for encoder offset changes
-    sigslot::signal<int, int> onOffsetUnit; // Signal for encoder offset changes
-    vector<shared_ptr<Control>> controls; // Vector of controls in the multi-control
-
-    MultiControl(std::string name, vector<shared_ptr<Control>> controlsVector, bool isEncoder = false) : name(name), isEncoder(isEncoder) {
-        for(int i = 0; i < controlsVector.size(); ++i) {
-            std::cout << "Propagating value for " << name << " at index: " << i << "\n";
-            controlsVector[i]->onValue.connect([&, i](ShortMessage &msg) {
-               
-                propagateValue(i, msg);
-            });
-            this->controls.push_back(controlsVector[i]);
-        }
-    }
-
-    bool isEncoder = false;
-
-    void propagateValue(int index, ShortMessage &msg) {
-        
-        onMidiIn(index, msg);
-        if(msg.isNoteOn()) {
-            onPressed(index);
-        }
-        if(msg.isNoteOff()) {
-            onReleased(index);
-        }
-
-        if(isEncoder) {
-            // For encoders, we can also emit the value directly
-            auto offsetAmount = getEncoderOffsetAmount(msg.getControllerValue());
-            onOffset(index, offsetAmount);
-            onOffsetUnit(index, offsetAmount / 64);
-        }
-
-    }
-};
-
 class MPCStudioBlackControlSurface : public enable_shared_from_this<MPCStudioBlackControlSurface>{
 public:
     shared_ptr<RtMidiOut> midiout = make_shared<RtMidiOut>();
@@ -57,6 +15,9 @@ public:
     shared_ptr<MPCSampler> mpcSampler;
     shared_ptr<MPCStudioBlackDevice> device;
     shared_ptr<Component> sessionComponent; // Session component for handling pad events
+    shared_ptr<Component> pageComponent; // Page component for handling page changes
+    shared_ptr<Component> browserComponent; // Browser component for handling browser events
+    shared_ptr<Component> transportComponent; // Transport component for handling transport controls
 
     // Controls =============
     shared_ptr<OneColorButtonControl> playButton = make_shared<OneColorButtonControl>(PLAY_BUTTON, "Play Button");
@@ -253,6 +214,14 @@ public:
             functionButtons = make_shared<MultiControl>("functionButtons",
                 vector<shared_ptr<Control>>{f1Button, f2Button, f3Button,
                                             f4Button, f5Button, f6Button});
+
+            // Bind the metronome tick signal to each control's onMetronomeTick method. This allows for blinking
+            for(auto &control : device->controlRegistry) {
+                mpcSampler->project->playhead->midiClock->onMetronomeTick.connect(
+                    std::bind(&Control::onMetronomeTick, control.get(),
+                              std::placeholders::_1, std::placeholders::_2,
+                              std::placeholders::_3));
+            }
         }
 
     void uninitialize(){

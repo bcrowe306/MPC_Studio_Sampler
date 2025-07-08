@@ -25,6 +25,7 @@ public:
     shared_ptr<AnalyserNode> input;
     shared_ptr<AnalyserNode> output;
     shared_ptr<AudioContext> context;
+    shared_ptr<SamplerDevice> samplerDevice;
 
     sigslot::signal<bool> onIsEmpty; // Signal emitted when the track is empty or not
     sigslot::signal<> onSamplerDeviceChanged; // Signal emitted when the sampler device is changed
@@ -109,7 +110,7 @@ public:
     }
 private:
     bool _isEmpty = true; // Track if the track is empty
-    shared_ptr<SamplerDevice> samplerDevice; // Device associated with the track, if any
+     // Device associated with the track, if any
 
 };
 
@@ -122,6 +123,7 @@ class Track {
     shared_ptr<VRBool> solo;    // Track solo state
 
     sigslot::signal<float, float> onLevelMetersChanged;
+    sigslot::signal<> onDeviceUpdate; // Signal emitted when the sampler device is changed
     Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
           volume(make_shared<VRFloat>("Volume", 1.0f, 0.0, 1.0, 0.01, 0.001, undoManager)),
           pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
@@ -152,19 +154,39 @@ class Track {
     };
     ~Track() = default;
 
-
+    bool isTrackEmpty() {
+        return trackNode->samplerDevice == nullptr; // Check if the track has a sampler device
+    }
     void createSamplerDevice(const std::string& filePath) {
         trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
+        onDeviceUpdate(); // Emit signal that the device has been updated
+    }
+
+    void loadSample(const std::string& filePath) {
+        if (!trackNode->samplerDevice) {
+            trackNode->createSamplerDevice(filePath); // Create a new sampler device if it doesn't exist
+        } else {
+            trackNode->samplerDevice->loadSample(filePath); // Load the sample into the existing sampler device
+        }
+        onDeviceUpdate(); // Emit signal that the device has been updated
     }
 
     void midiInput(choc::midi::ShortMessage &msg) {
         trackNode->midiInput(msg); // Forward MIDI input to the track node
     }
 
+    vector<float> * getWaveformData() {
+        if (trackNode->samplerDevice) {
+            trackNode->samplerDevice->generateWaveformData(); // Generate waveform data from the sampler device
+            return &trackNode->samplerDevice->_waveformData; // Return the waveform data
+        }
+        return nullptr; // Return nullptr if no sampler device is present
+    }
+
     LevelMeters getLevelMeters() {
         LevelMeters meters;
         if (trackNode->meterNode) {
-            auto res = trackNode->meterNode->rmsDbLinear();
+            auto res = trackNode->meterNode->rmsDb();
             meters.left = res[0];  // Get left channel level
             meters.right = res[1]; // Get right channel level
         }

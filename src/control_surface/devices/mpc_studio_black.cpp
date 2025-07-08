@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <thread>
 
 
 MPCStudioBlackDevice::MPCStudioBlackDevice(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn)
@@ -99,6 +100,7 @@ void MPCStudioBlackDevice::handleSysExMessage(const std::vector<unsigned char> &
 void MPCStudioBlackDevice::switchToPrivateMode() {
     std::vector<unsigned char> data = {SYSEX_PRIVATE_MODE_ID};
     sendSysExCommand(SYSEX_COMMAND_ID_MODE, data);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 }
 
 void MPCStudioBlackDevice::switchToPublicMode() {
@@ -119,12 +121,13 @@ void MPCStudioBlackDevice::handleError(const RtMidiError &error) {
 void MPCStudioBlackDevice::registerControl(shared_ptr<Control> control) {
     if (control) {
         control->setMidiOutPort(midiOut);
-        _controlRegistry.push_back(control);
+        controlRegistry.push_back(control);
+        
     }
 }
 
 void MPCStudioBlackDevice::signalControls(choc::midi::ShortMessage &msg) {
-    for (const auto &control : _controlRegistry) {
+    for (const auto &control : controlRegistry) {
         control->midiInput(msg);
     }
 }

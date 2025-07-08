@@ -3,3 +3,4 @@
 #include "button_control.h"
 #include "encoder_control.h"
 #include "pad_control.h"
+#include "multi_control.h"

@@ -18,6 +18,13 @@ Widget::Widget(Vector position, Vector size)
     cr = cairo_create(surface);
     }
 
+Widget::Widget() { // Default size
+    position = Vector(0, 0); // Default position
+    width = 360; // Default width
+    height = 96; // Default height
+    surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, 360, 96);
+    cr = cairo_create(surface);
+}
 
 void Widget::clear() {
     if (cr) {
@@ -62,7 +69,6 @@ void Widget::initialize(EncodeSurfaceCallback encode_surface_callback) {
             child->initialize(encode_surface_callback);
         }
     }
-    render(); // Initial render to set up the surface
 }
 
 void Widget::activate() {
@@ -72,6 +78,7 @@ void Widget::activate() {
             child->activate();
         }
     }
+    onActivated(); // Call the activation callback
 }
 
 void Widget::deactivate() {
@@ -81,6 +88,7 @@ void Widget::deactivate() {
             child->deactivate();
         }
     }
+    onDeactivated(); // Call the deactivation callback
 }
 
 void Widget::add_child(shared_ptr<Widget> child) {

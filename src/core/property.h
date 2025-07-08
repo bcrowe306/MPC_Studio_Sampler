@@ -1,6 +1,4 @@
 #pragma once
-
-#include "control_surface/components/component.h"
 #include "sigslot/signal.hpp"
 
 

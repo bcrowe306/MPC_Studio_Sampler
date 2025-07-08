@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "audio_engine.h"
+#include "core/browser.h"
 
 using std::string;
 using std::shared_ptr;
@@ -11,8 +12,10 @@ using std::make_shared;
 // Main class for the Sampler/Sequencer
 class MPCSampler{
 public:
+    shared_ptr<Browser> browser; // Browser for file management and navigation
     MPCSampler(){
         initialize(); // Initialize the sampler when created
+        browser = make_shared<Browser>(audioEngine->context); // Initialize the browser
     };
     ~MPCSampler(){
         uninitialize(); // Clean up resources when the sampler is destroyed

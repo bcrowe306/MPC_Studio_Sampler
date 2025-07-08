@@ -45,6 +45,7 @@ public:
     void sendMidi(vector<uint8_t> * value);
     void sendMidi(ShortMessage &msg); 
     void setMidiOutPort(shared_ptr<RtMidiOut> midiOut);
+    virtual void onMetronomeTick(bool bar, bool beat, bool half){};
 
 protected:
     bool _active = true; // Control is active by default

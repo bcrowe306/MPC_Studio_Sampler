@@ -19,6 +19,7 @@ public:
     std::function <void(choc::midi::ShortMessage)> onMidiMessage;
 
 public:
+    vector<shared_ptr<Control>> controlRegistry;
     MPCStudioBlackDevice(shared_ptr<RtMidiOut> midiOut, shared_ptr<RtMidiIn> midiIn);
     ~MPCStudioBlackDevice();
     void openOutputPort();
@@ -53,7 +54,6 @@ public:
     void sendImageBuffer(cairo_surface_t *surface, unsigned int x_pos, unsigned int y_pos); 
 
   private:
-    vector<shared_ptr<Control>> _controlRegistry;
     vector<unsigned char> encoded_line;
     shared_ptr<RtMidiOut> midiOut;
     shared_ptr<RtMidiIn> midiIn;

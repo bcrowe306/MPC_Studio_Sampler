@@ -52,6 +52,10 @@ class Playhead{
             }
         };
 
+        bool isPlaying() const {
+            return midiClock->isEnabled(); // Return whether the MIDI clock is enabled
+        };
+
         void setReturnToZero(bool returnToZero) {
             _returnToZero = returnToZero; // Set the flag to return to zero position
         };

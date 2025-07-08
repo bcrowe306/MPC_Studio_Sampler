@@ -10,13 +10,14 @@ using std::string;
 
 class HeaderSection : public Widget {
 public:
-  shared_ptr<TextWidget> bpmWidget;
-  shared_ptr<LabelButton> inputQuantizeButton;
+    shared_ptr<TextWidget> bpmWidget;
+    shared_ptr<LabelButton> inputQuantizeButton;
     shared_ptr<TextWidget> songPositionWidget;
     shared_ptr<LabelButton> sequenceNumberWidget;
-  HeaderSection(string leftText = "XF Kick",
-                string rightText = "Track 1")
-      : Widget(0, 0, 360, 13), _leftText(leftText), _rightText(rightText) {
+    shared_ptr<TextWidget> leftTextWidget;
+    shared_ptr<TextWidget> rightTextWidget;
+  HeaderSection()
+      : Widget(0, 0, 360, 13) {
 
     bpmWidget = make_shared<TextWidget>(60, 0, 60, 11, "120.00 BPM", 11, "center");
     this->add_child(bpmWidget);
@@ -30,30 +31,20 @@ public:
     sequenceNumberWidget = make_shared<LabelButton>(240, 0, 60, 11, "SEQ", "1");
     this->add_child(sequenceNumberWidget);
 
+    leftTextWidget = make_shared<TextWidget>(2, 0, 60, 11, "Left", 11, "left");
+    this->add_child(leftTextWidget);
+
+    rightTextWidget = make_shared<TextWidget>(width - 60, 0, 58, 11, "Right", 11, "left");
+    this->add_child(rightTextWidget);
+
     render();
     }
 
-    void setLeftText(const string &text) {
-        if(text == _leftText) return; // Avoid unnecessary updates
-        if(text.empty()) return; // Avoid empty text
-        _leftText = text;
-        render();
-    }  
-    void setRightText(const string &text) {
-        if(text == _rightText) return; // Avoid unnecessary updates
-        if(text.empty()) return; // Avoid empty text
-        _rightText = text;
-        render();
-    }
+   
 
     void draw(Vector offset) override {
         cairo_draw_horizontal_line(cr, 12, 0, width, 1, 1.0f);
-        cairo_draw_text(cr, _leftText, 2, 10, 11);
-        cairo_draw_text(cr, _rightText, width - 60, 10, 11);
+        
     }
-protected:
-    string _leftText;
-    string _rightText;
-
     
 };

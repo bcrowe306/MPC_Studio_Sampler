@@ -1,3 +1,9 @@
 #pragma once
 #include "device_page.h"
 #include "sequence_page.h"
+#include "browser_page.h"
+#include "mixer_page.h"
+#include "perform_page.h"
+#include "settings_page.h"
+#include "arranger_page.h"
+#include "project_page.h"

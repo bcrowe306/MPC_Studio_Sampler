@@ -65,6 +65,8 @@ public:
     void initialize(EncodeSurfaceCallback encode_surface_callback); 
     void activate();
     void deactivate();
+    virtual void onActivated(){};
+    virtual void onDeactivated(){};
     void clear();
     void render(Vector offset = Vector(0, 0));
     int get_x() const { return position.x; }
