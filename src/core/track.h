@@ -4,7 +4,9 @@
 #include "core/devices/sampler_device.h"
 #include "meter_node.h"
 #include "core/value_receiver.h"
+#include <iostream>
 #include <memory>
+#include "sigslot/signal.hpp"
 #include "util.h"
 #include "audio/choc_MIDI.h"
 using std::shared_ptr;
@@ -52,11 +54,11 @@ public:
 
 
     void setVolume(float volume) {
-        volumeNode->gain()->setValue(static_cast<float>(volume));
+        volumeNode->gain()->setValue(volume);
     }
 
     void setPan(float pan) {
-        panNode->pan()->setValue(static_cast<float>(pan));
+        panNode->pan()->setValue(pan);
     }
 
     void setMute(bool mute) {
@@ -124,6 +126,7 @@ class Track {
 
     sigslot::signal<float, float> onLevelMetersChanged;
     sigslot::signal<> onDeviceUpdate; // Signal emitted when the sampler device is changed
+    sigslot::signal<int, choc::midi::ShortMessage&> midiOutput;
     Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
           volume(make_shared<VRFloat>("Volume", 1.0f, 0.0, 1.0, 0.01, 0.001, undoManager)),
           pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
@@ -170,9 +173,12 @@ class Track {
         }
         onDeviceUpdate(); // Emit signal that the device has been updated
     }
-
+    void midiPlayback(choc::midi::ShortMessage &msg) {
+        trackNode->midiInput(msg);
+    }
     void midiInput(choc::midi::ShortMessage &msg) {
         trackNode->midiInput(msg); // Forward MIDI input to the track node
+        midiOutput(_trackIndex, msg); // Emit MIDI output signal for the track to whoever is listening, ie sequencer
     }
 
     vector<float> * getWaveformData() {
@@ -197,7 +203,16 @@ class Track {
         return trackNode->output; // Return the output node of the track
     }
 
+    void setTrackIndex(int index) {
+        _trackIndex = index; // Set the track index
+    }
+
+    int getTrackIndex() const {
+        return _trackIndex; // Get the track index
+    }
+
 protected:
+    int _trackIndex;
     shared_ptr<TrackNode> trackNode; // Node representing the track in the audio context
     shared_ptr<SamplerDevice> samplerDevice; // Device associated with the track, if any
 };

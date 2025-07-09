@@ -1,4 +1,5 @@
 #pragma once
+#include "sigslot/signal.hpp"
 #include "ui/widgets/widgets.h"
 #include "ui/pages/page_widget.h"
 #include <iostream>
@@ -17,6 +18,7 @@ class DevicePage : public PageWidget {
 public:
     vector<shared_ptr<FunctionWidget>> functionWidgets;
     vector<shared_ptr<ParameterWidget>> parameterWidgets;
+    vector<sigslot::connection> trackConnections;
     shared_ptr<ButtonWidget> outputWidget;
     shared_ptr<MeterWidget> meterWidget;
     shared_ptr<ButtonWidget> soloButtonWidget;
@@ -30,7 +32,6 @@ public:
     {
         _title = title;
         createWidgets();
-        addObservers();
     }
 
     ~DevicePage() override {
@@ -38,7 +39,6 @@ public:
     };
 
     void createWidgets(){
-        
         for (int i = 0; i < 6; i++) {
           auto functionWidget = make_shared<FunctionWidget>(
               i * 60, 96 - 11, 60, 13, fmt::format("F{}", i + 1), false,
@@ -46,6 +46,9 @@ public:
           functionWidgets.push_back(functionWidget);
           this->add_child(functionWidget);
         }
+        functionWidgets[3]->setLabel("Output");
+        functionWidgets[4]->setLabel("Solo");
+        functionWidgets[5]->setLabel("Mute");
 
         for (int i = 0; i < 4; i++) {
           auto parameterWidget = make_shared<ParameterWidget>(
@@ -76,12 +79,6 @@ public:
         this->add_child(waveformSection);
     }
 
-    void addObservers(){
-        mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1));
-        onTrackSelected(); // Initialize with no track selected
-        
-    }
-
     void onFrame() override {
         auto track = mpcSampler->project->selectedTrack();
         if (track) {
@@ -92,24 +89,81 @@ public:
     }
 
     void onTrackSelected(int trackIndex = -1) {
-        auto index = mpcSampler->project->selectedTrackIndex();
-        if (index != -1) {
-            auto track = mpcSampler->project->selectedTrack();
-            if (track) {
-                headerSection->rightTextWidget->set_text(track->name->getValue());
+
+        for(auto &connection : trackConnections) {
+            connection.disconnect();
+        }
+        trackConnections.clear();
+
+        
+        auto selectedTrack = mpcSampler->project->selectedTrack();
+        if (selectedTrack) {
+
+            headerSection->rightTextWidget->set_text(selectedTrack->name->getValue());
+
+            // set the waveform data for the waveform section
+            auto waveformData = mpcSampler->project->selectedTrack()->getWaveformData();
+            if (waveformData) {
+                waveformSection->setWaveformData(waveformData);
+            } else {
+                waveformSection->setWaveformData(nullptr); // Clear waveform data if no track is selected
             }
-        } else {
+
+            // Volume
+            trackConnections.push_back(selectedTrack->volume->onValueChanged.connect([this](float volume) {
+                volumeLabelWidget->set_text(fmt::format("{:.2f} dB", linearToDB(volume)));
+                meterWidget->setVolume(volume);
+            }));
+            volumeLabelWidget->set_text(fmt::format("{:.2f} dB", linearToDB(selectedTrack->volume->getValue())));
+            meterWidget->setVolume(selectedTrack->volume->getValue());
+
+            trackConnections.push_back(controlSurface->jogWheel->onOffset.connect([this, selectedTrack](int offset) {
+                    selectedTrack->volume->setValue(selectedTrack->volume->getValue() + offset * 0.01f);
+            }));
+
+            // Solo
+            trackConnections.push_back(controlSurface->f5Button->onPressed.connect([this, selectedTrack]() {
+                selectedTrack->solo->setValue(!selectedTrack->solo->getValue());
+            }));
+            trackConnections.push_back(selectedTrack->solo->onValueChanged.connect([this](bool solo) {
+                soloButtonWidget->setSelected(solo);
+            }));
+            soloButtonWidget->setSelected(selectedTrack->solo->getValue());
+
+            // Mute
+            trackConnections.push_back(controlSurface->f6Button->onPressed.connect([this, selectedTrack]() {
+                selectedTrack->mute->setValue(!selectedTrack->mute->getValue());
+            }));
+            trackConnections.push_back(selectedTrack->mute->onValueChanged.connect([this](bool mute) {
+                muteButtonWidget->setSelected(mute);
+            }));
+            muteButtonWidget->setSelected(selectedTrack->mute->getValue());
+
+        }
+        else {
             headerSection->rightTextWidget->set_text("No Track");
         }
-        // set the waveform data for the waveform section
-        auto waveformData = mpcSampler->project->selectedTrack()->getWaveformData();
-        if (waveformData) {
-            waveformSection->setWaveformData(waveformData);
-        } else {
-            waveformSection->setWaveformData(nullptr); // Clear waveform data if no track is selected
-        }
+
+
+
+        
 
     }
+    void onActivated() override {
+        signalConnections.push_back( mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1)) );
+        onTrackSelected(); // Initialize with no track selected
+
+
+        signalConnections.push_back(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
+            headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
+        }));
+        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
+
+
+    }
+
+    
+
 
     void draw(Vector offset) override {
        

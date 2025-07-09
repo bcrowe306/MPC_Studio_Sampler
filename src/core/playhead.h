@@ -1,4 +1,6 @@
+#pragma once
 #include "LabSound/LabSound.h"
+#include "core/value_receiver.h"
 #include "timing.h"
 #include <memory>
 
@@ -7,11 +9,25 @@ using std::make_shared;
 
 class Playhead{
     public:
+        // Signals
+        enum class PlayheadState { PLAYING, STOPPED, RECORDING, PRECOUNT };
+        
+        sigslot::signal<bool, bool, bool> onMetronomeTick; // Signal for metronome ticks
+        sigslot::signal<string> onSongPositionDisplayChanged; // Helper Signal for song position display
+        sigslot::signal<int> onSongPositionChanged; // Signal for song position changes
+        sigslot::signal<int> onTick;
+        sigslot::signal<PlayheadState> onPlayheadStateChanged; // Signal for playhead state changes
+
+        
         bool hasRunOnce = false; // Flag to check if the playhead has run
+        VRBool precount = VRBool("precount", false); // Value receiver for precount state
+        VRInt precountBars = VRInt("precountBars", 1, 1, 4); // Value receiver for number of bars in precount
 
         shared_ptr<MidiClock> midiClock; // MIDI clock for timing
         shared_ptr<lab::FunctionNode> playheadNode; // Node representing the playhead
         shared_ptr<lab::AudioContext> audioContext; // Audio context for the playhead
+
+        // Constructor
         Playhead(shared_ptr<lab::AudioContext> audioContext) : audioContext(audioContext) {
             // Initialize playhead with the audio context
             playheadNode = make_shared<lab::FunctionNode>(*audioContext.get());
@@ -24,7 +40,13 @@ class Playhead{
                 midiClock->processBlock(r.context()->sampleRate(), bufferSize);
             });
             playheadNode->start(0.0); // Start the playhead node at time 0.0
+
+            // Process the tick when the MIDI clock ticks
+            midiClock->onTick.connect([this]() {
+                processTick(); 
+            });
         };
+
         ~Playhead() = default;
     
         void processBlock(lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
@@ -36,13 +58,22 @@ class Playhead{
             midiClock->setBPM(bpm); // Set the BPM for the MIDI clock
         };
 
+        double getBPM() const {
+            return midiClock->getBPM(); // Get the current BPM from the MIDI clock
+        };
+
         void start() {
-            midiClock->start(); // Start the MIDI clock
+            setState(PlayheadState::PLAYING); // Set the playhead state to playing
         };
 
         void stop() {
-            midiClock->stop(_returnToZero); // Stop the MIDI clock
+            setState(PlayheadState::STOPPED); // Set the playhead state to stopped
+            
         };
+
+        void record(){
+            setState(PlayheadState::RECORDING); // Set the playhead state to recording
+        }
 
         void togglePlaying() {
             if (midiClock->isEnabled()) {
@@ -52,9 +83,21 @@ class Playhead{
             }
         };
 
-        bool isPlaying() const {
-            return midiClock->isEnabled(); // Return whether the MIDI clock is enabled
+        void toggleRecording() {
+            if(isRecording()) {
+                setState(PlayheadState::PLAYING); // Stop recording if currently recording
+            } else {
+                setState(PlayheadState::RECORDING); // Start recording if currently stopped
+            }
         };
+
+        bool isPlaying() const {
+            return _state == PlayheadState::PLAYING || _state == PlayheadState::RECORDING || _state == PlayheadState::PRECOUNT; // Check if the playhead is in playing, recording, or precount state
+        };
+
+        bool isRecording () const {
+            return _state == PlayheadState::RECORDING || _state == PlayheadState::PRECOUNT;
+        }
 
         void setReturnToZero(bool returnToZero) {
             _returnToZero = returnToZero; // Set the flag to return to zero position
@@ -70,7 +113,188 @@ class Playhead{
         void setTimeSignature(const TimeSignature &timeSignature) {
             midiClock->setTimeSignature(timeSignature); // Set the time signature
         };
+
+        void setState(PlayheadState settingState) {
+            if(settingState == PlayheadState::RECORDING ){
+                switch(_state) {
+                    case PlayheadState::PLAYING:
+                        // If currently playing, switch to recording state
+                        _state = PlayheadState::RECORDING;
+                        break;
+                    case PlayheadState::STOPPED:
+                        // If currently stopped, switch to precount if precount is enabled
+                        if (precount.getValue()) {
+                            _state = PlayheadState::PRECOUNT;
+                            _precountTicks = 0; // Reset precount ticks
+                            midiClock->start(); // Start the MIDI clock
+                        }else{
+                            _state = PlayheadState::RECORDING; // Switch to recording state
+                            midiClock->start(); // Start the MIDI clock
+                        }
+                        break;
+                    case PlayheadState::RECORDING:
+                        // Already in recording state, do nothing
+                        return;
+                    case PlayheadState::PRECOUNT:
+                        _state = settingState; // If in precount, switch to recording state
+                        break;
+                }
+            }
+            else if (settingState == PlayheadState::PLAYING){
+                if(_state == PlayheadState::PRECOUNT){
+                    // ignore the request to switch to playing state from precount
+                    return;
+                }
+                else if(_state == PlayheadState::STOPPED){
+                    _state = PlayheadState::PLAYING; // Set the playhead state to playing
+                    midiClock->start(); // Start the MIDI clock
+                }
+                else if(_state == PlayheadState::RECORDING){
+                    _state = PlayheadState::PLAYING; // Set the playhead state to playing
+                }
+            }
+            else if(settingState == PlayheadState::STOPPED){
+                    _state = PlayheadState::STOPPED;
+                    midiClock->stop(); // Stop the MIDI clock
+                    _ticks = _returnToZero ? 0 : _ticks; // Reset ticks when stopped
+            }
+            else{
+                _state = settingState; // Set the playhead state to the requested state
+            }
+            onPlayheadStateChanged(_state);
+        };
+
+        void playingState(){
+            auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
+            int ticksPerBar = kTPQN * _timeSignature.numerator;
+            int ticksPerBeat = kTPQN / (_timeSignature.denominator / 4);
+            int ticksPerSixteenth = ticksPerBar / 16;
+            bool isBar = (_ticks % ticksPerBar) == 0;
+            bool isBeat = (_ticks % ticksPerBeat) == 0;
+            bool isHalfBeat = (_ticks % (ticksPerBeat / 2)) == 0;
+            bool is16th = (_ticks % ticksPerSixteenth) == 0;
+            int bar = _ticks / ticksPerBar;
+            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+
+            if (isHalfBeat) {
+                onMetronomeTick(isBar, isBeat, isHalfBeat);
+            }
+
+            if (is16th) {
+                onSongPositionDisplayChanged(
+                    generateDisplayString(bar, beat, sixteenthNote));
+            }
+            this->onTick(_ticks); // Emit tick signal with current ticks
+            ++_ticks;
+        }
+
+        void stoppedState(){}
+
+        void recordingState(){
+            auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
+            int ticksPerBar = kTPQN * _timeSignature.numerator;
+            int ticksPerBeat = kTPQN / (_timeSignature.denominator / 4);
+            int ticksPerSixteenth = ticksPerBar / 16;
+            bool isBar = (_ticks % ticksPerBar) == 0;
+            bool isBeat = (_ticks % ticksPerBeat) == 0;
+            bool isHalfBeat = (_ticks % (ticksPerBeat / 2)) == 0;
+            bool is16th = (_ticks % ticksPerSixteenth) == 0;
+            int bar = _ticks / ticksPerBar;
+            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+
+            if (isHalfBeat) {
+                onMetronomeTick(isBar, isBeat, isHalfBeat);
+            }
+
+            if (is16th) {
+                onSongPositionDisplayChanged(
+                    generateDisplayString(bar, beat, sixteenthNote));
+            }
+            onTick(_ticks); // Emit tick signal with current ticks
+            ++_ticks;
+        }
+
+        void precountState(){
+            auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
+            int ticksPerBar = kTPQN * _timeSignature.numerator;
+            int ticksPerBeat = kTPQN / (_timeSignature.denominator / 4);
+            int ticksPerSixteenth = ticksPerBar / 16;
+            bool isBar = (_ticks % ticksPerBar) == 0;
+            bool isBeat = (_ticks % ticksPerBeat) == 0;
+            bool isHalfBeat = (_ticks % (ticksPerBeat / 2)) == 0;
+            bool is16th = (_ticks % ticksPerSixteenth) == 0;
+            int bar = _ticks / ticksPerBar;
+            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+
+            if (isHalfBeat) {
+                onMetronomeTick(isBar, isBeat, isHalfBeat);
+            }
+
+            if (is16th) {
+                // onSongPositionDisplayChanged(
+                //     generateDisplayString(bar, beat, sixteenthNote));
+            }
+
+            // Do precount logic
+            if(_precountTicks >= (precountBars.getValue() * ticksPerBar)) {
+                // If the precount has reached the specified number of bars, switch to recording state
+                setState(PlayheadState::RECORDING); // Set the playhead state to recording
+                _precountTicks = 0; // Reset precount ticks
+            } else {
+                _precountTicks++; // Increment ticks during precount
+            }
+        }
+
+        void processTick(){
+            switch(_state) {
+                case PlayheadState::PLAYING:
+                    playingState(); // Handle playing state
+                    break;
+                case PlayheadState::STOPPED:
+                    stoppedState(); // Handle stopped state
+                    break;
+                case PlayheadState::RECORDING:
+                    recordingState(); // Handle recording state
+                    break;
+                case PlayheadState::PRECOUNT:
+                    precountState(); // Handle precount state
+                    break;
+            }
+        }
+        string generateDisplayString(int bar, int beat, int sixteenthNote) {
+            // Generate a display string in the format "Bar.Beat.Sixteenth"
+            return fmt::format("{:02}.{:02}.{:02}", bar + 1, beat + 1,
+                               sixteenthNote + 1);
+        }
+
+        void setSongPosition(int bar, int beat, int sixteenthNote) {
+            // Update the song position and emit the signal
+            auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
+            _ticks = (bar * _timeSignature.numerator * kTPQN) + (beat * kTPQN / (_timeSignature.denominator / 4)) + (sixteenthNote * (kTPQN / 16));
+            onSongPositionChanged(_ticks);
+            onSongPositionDisplayChanged(generateDisplayString(bar, beat, sixteenthNote));
+        }
+
+        SongPosition generateSongPosition() const {
+            auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
+            int ticksPerBar = kTPQN * _timeSignature.numerator;
+            int ticksPerBeat = kTPQN / (_timeSignature.denominator / 4);
+            int ticksPerSixteenth = ticksPerBeat / 4;
+
+            int bar = _ticks / ticksPerBar;
+            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+
+            return {bar, beat, sixteenthNote};
+        }
+
     private:
+        int _ticks = 0; // Current tick count
+        int _precountTicks = 0; // Ticks during precount
+        PlayheadState _state = PlayheadState::STOPPED; // Current state of the playhead
         bool _returnToZero = true; // Flag to return to zero position
         
 };

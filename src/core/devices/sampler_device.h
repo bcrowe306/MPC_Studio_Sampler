@@ -28,7 +28,6 @@ public:
         _audioContext->connect(_velocityNode, _samplerNode, 0, 0); // Connect the output to the sampler node
         _audioContext->connect(_gainNode, _velocityNode, 0, 0); // Connect the sampler node to the gain node
         _audioContext->connect(output, _gainNode, 0, 0); // Connect the sampler node to the gain node
-        _audioContext->connect(audioContext->destinationNode(), output, 0, 0);
         _audioContext->synchronizeConnections();
 
         connectParams(); // Connect the gain parameter to the gain node

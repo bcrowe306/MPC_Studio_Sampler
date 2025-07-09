@@ -8,23 +8,21 @@ static inline shared_ptr<MPCStudioBlackControlSurface> build_surface(shared_ptr<
     // Create components
     controlSurface->sessionComponent = make_shared<SessionComponent>(controlSurface);
     controlSurface->pageComponent = make_shared<PageComponent>(controlSurface);
-    controlSurface->browserComponent = make_shared<BrowserComponent>(controlSurface);
     controlSurface->transportComponent = make_shared<TransportComponent>(controlSurface);
     
     // Activate components
     controlSurface->sessionComponent->activate();
     controlSurface->pageComponent->activate();
-    controlSurface->browserComponent->activate();
     controlSurface->transportComponent->activate();
 
-    controlSurface->recordButton->onPressed.connect([&]() {
-        bool isActive = controlSurface->sessionComponent->isActive();
-        if (isActive) {
-            controlSurface->sessionComponent->deactivate();
-        } else {
-            controlSurface->sessionComponent->activate();
-        }
-    });
+    // controlSurface->recordButton->onPressed.connect([&]() {
+    //     bool isActive = controlSurface->sessionComponent->isActive();
+    //     if (isActive) {
+    //         controlSurface->sessionComponent->deactivate();
+    //     } else {
+    //         controlSurface->sessionComponent->activate();
+    //     }
+    // });
 
     return controlSurface;
 }

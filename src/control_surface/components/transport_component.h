@@ -37,18 +37,29 @@ public:
          controlConnections.push_back(mpcSampler->project->onIsPlaying.connect([this](bool isPlaying) {
               updateLeds(); // Update the LEDs when playback state changes
          }));
+
+         controlConnections.push_back(mpcSampler->project->playhead->onPlayheadStateChanged.connect([this](Playhead::PlayheadState state) {
+              updateLeds(); // Update the LEDs when playhead state changes
+         }));
          updateLeds(); // Update the LEDs based on the current state
     }
 
     void updateLeds(){
         auto &cs = controlSurface;
         // Play button LED
+        controlSurface->tapTempoButton->sendColor(OneColorButtonControl::Colors::ON);
         if (mpcSampler->project->isPlaying()) {
 
             cs->playButton->blinking = true; // Enable blinking for play button
         } else {
             cs->playButton->blinking = false; // Disable blinking for play button
             cs->playButton->sendColor(OneColorButtonControl::Colors::OFF);
+        }
+
+        if(mpcSampler->project->playhead->isRecording()) {
+            cs->recordButton->sendColor(OneColorButtonControl::Colors::ON); // Set record button to ON color
+        } else {
+            cs->recordButton->sendColor(OneColorButtonControl::Colors::OFF); // Set record button to OFF color
         }
     }
 

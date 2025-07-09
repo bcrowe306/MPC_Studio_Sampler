@@ -27,7 +27,9 @@ struct MultiControl {
     bool isEncoder = false;
 
     void propagateValue(int index, ShortMessage &msg) {
-        
+        auto data = msg.data;
+
+
         onMidiIn(index, msg);
         if(msg.isNoteOn()) {
             onPressed(index);

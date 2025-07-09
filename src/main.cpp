@@ -35,7 +35,7 @@ int main(int, char **) {
      auto mpcDevice = controlSurface->device;
 
      // Class to draw on the MPC Studio Black display
-     auto display = create_display(mpc_sampler, std::bind(&MPCStudioBlackDevice::sendImageBuffer, mpcDevice.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+     auto display = create_display(mpc_sampler, controlSurface, std::bind(&MPCStudioBlackDevice::sendImageBuffer, mpcDevice.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
     // Launch the application loop in a separate thread. need boolean flag to control the loop
     std::atomic<bool> running(true);

@@ -217,7 +217,7 @@ public:
 
             // Bind the metronome tick signal to each control's onMetronomeTick method. This allows for blinking
             for(auto &control : device->controlRegistry) {
-                mpcSampler->project->playhead->midiClock->onMetronomeTick.connect(
+                mpcSampler->project->playhead->onMetronomeTick.connect(
                     std::bind(&Control::onMetronomeTick, control.get(),
                               std::placeholders::_1, std::placeholders::_2,
                               std::placeholders::_3));

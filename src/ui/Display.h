@@ -1,5 +1,6 @@
 #pragma once
 
+#include "control_surface/mpc_studio_black_surface.h"
 #include "core/mpc_sampler.h"
 #include "ui/pages/pages.h"
 #include "ui/widgets/widgets.h"
@@ -18,10 +19,12 @@ public:
     
     EncodeSurfaceCallback encode_surface_callback;
     shared_ptr<MPCSampler> mpcSampler;
+    shared_ptr<MPCStudioBlackControlSurface> controlSurface;
     string current_page;
     sigslot::signal<> onFrame;
-    Display(shared_ptr<MPCSampler> mpcSampler, EncodeSurfaceCallback encode_surface_callback) 
-        : mpcSampler(mpcSampler), encode_surface_callback(encode_surface_callback){
+    Display(shared_ptr<MPCSampler> mpcSampler, shared_ptr<MPCStudioBlackControlSurface> controlSurface, EncodeSurfaceCallback encode_surface_callback) 
+        : mpcSampler(mpcSampler), controlSurface(controlSurface), encode_surface_callback(encode_surface_callback)
+    {
         // Initialize the display with an empty set of pages
 
     }
@@ -34,6 +37,7 @@ public:
         for (auto &[name, page] : pages) {
             if (page) {
                 page->initialize(encode_surface_callback);
+                page->controlSurface = controlSurface; // Set the control surface for each page
             }
         }
 
@@ -82,8 +86,8 @@ protected:
 };
 
 
-static inline shared_ptr<Display> create_display(shared_ptr<MPCSampler> mpcSampler, EncodeSurfaceCallback encode_surface_callback) {
-    auto display = std::make_shared<Display>(mpcSampler, encode_surface_callback);
+static inline shared_ptr<Display> create_display(shared_ptr<MPCSampler> mpcSampler, shared_ptr<MPCStudioBlackControlSurface> controlSurface, EncodeSurfaceCallback encode_surface_callback) {
+    auto display = std::make_shared<Display>(mpcSampler, controlSurface, encode_surface_callback);
     auto devicePage = make_shared<DevicePage>(mpcSampler, 0, 0, 360, 96);
     auto sequencePage = make_shared<SequencePage>(mpcSampler, 0, 0, 360, 96);
     auto arrangerPage = make_shared<ArrangerPage>(mpcSampler, 0, 0, 360, 96);

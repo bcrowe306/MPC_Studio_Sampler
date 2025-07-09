@@ -2,8 +2,10 @@
 #include "LabSound/LabSound.h"
 #include "LabSound/core/AudioContext.h"
 #include "LabSound/extended/FunctionNode.h"
+#include "core/sequencer/sequence.h"
 #include "sigslot/signal.hpp"
 #include <algorithm>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include "core/timing.h"
@@ -14,9 +16,10 @@
 #include "value_receiver.h"
 #include <array>
 #include <vector>
+#include "core/nodes/tap_tempo_node.h"
+#include "core/constants.h"
+#include "sequencer/sequencer.h"
 
-inline const int kMaxTracks = 64; // Maximum number of tracks in a project
-inline const int kMaxBusses = 8; // Maximum number of busses in a project
 
 enum class DisplayPages {
     DevicePage, // Page for device-specific controls
@@ -44,24 +47,28 @@ public:
         metronomeNode = std::make_shared<MetronomeNode>(audioContext);
         playhead = std::make_shared<Playhead>(audioContext);
         undoManager = std::make_shared<UndoManager>(audioContext); // Initialize the undo manager
+        tapTempoNode = std::make_shared<TapTempoNode>(audioContext); // Initialize the tap tempo node
+        sequencer = std::make_shared<Sequencer>(); // Initialize the sequencer
 
-        playhead->midiClock->onMetronomeTick.connect(std::bind(&MetronomeNode::onMetronomeTick, metronomeNode.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        playhead->onMetronomeTick.connect(std::bind(&MetronomeNode::onMetronomeTick, metronomeNode.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        _connectSequencer(); // Connect the sequencer to the playhead
 
+       
         audioContext->connect(audioContext->destinationNode(), masterTrack->output, 0, 0); 
         audioContext->connect(audioContext->destinationNode(), cueTrack->output, 0, 0); 
         audioContext->connect(audioContext->destinationNode(), playhead->playheadNode, 0, 0);
         audioContext->connect(cueTrack->input, metronomeNode->clickGainNode, 0, 0); // Connect metronome output to audio context destination
         audioContext->synchronizeConnections(); // Synchronize connections after setup
 
-        tracks = std::vector<std::shared_ptr<Track>>();
-        tracks.reserve(kMaxTracks); // Reserve space for 64 tracks
+        
         _createTracks(); // Create the initial tracks
+        _createBusses(); // Create the initial busses
 
         _connectParams(); // Connect parameters to their respective signals
         projectName.setValue("Untitled Project"); // Set default project name
     };
 
-    
+
 
     ~Project() = default;
 
@@ -79,11 +86,13 @@ public:
     shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
     shared_ptr<Playhead> playhead; // Playhead for the project
     shared_ptr<UndoManager> undoManager; // Undo manager for the project
+    shared_ptr<TapTempoNode> tapTempoNode; // Tap tempo node for the project
+    shared_ptr<Sequencer> sequencer; // Sequencer for the project
 
     // Project parameters
     VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
     ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>(
-        "displayPage", kDisplayPageNames[5], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
+        "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
     VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
     VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
     VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
@@ -151,11 +160,11 @@ public:
     }
 
     void record() {
-        // TODO: Implement recording logic
+        playhead->record(); // Start recording
     }
 
     void toggleRecord() {
-        // TODO: Implement toggle record logic
+        playhead->toggleRecording(); // Toggle recording state
     }
 
     void togglePlay() {
@@ -168,22 +177,69 @@ public:
     }
 
     void tapTempo() {
-        // TODO: Implement tap tempo logic
+        tapTempoNode->tap(); // Call the tap method on the tap tempo node
     }
     
 
 private:
+
+    void _connectSequencer(){
+        // Connect sequencer
+        playhead->onTick.connect(std::bind(&Sequencer::onTick, sequencer.get(), std::placeholders::_1)); // Connect playhead ticks to sequencer ticks
+        playhead->onPlayheadStateChanged.connect(std::bind(&Sequencer::onPlayheadStateChanged, sequencer.get(), std::placeholders::_1)); // Connect playhead state changes to sequencer
+        sequencer->onMidiOutput.connect(std::bind(&Project::_onSequencerMidiOutput, this, std::placeholders::_1, std::placeholders::_2)); // Connect sequencer MIDI output to project
+
+    }
+
+    void _onSequencerMidiOutput(int trackIndex, ShortMessage &msg) {
+        // Forward MIDI output from the sequencer to the project
+        if (trackIndex < 0 || trackIndex >= static_cast<int>(tracks.size())) {
+            std::cerr << "Invalid track index: " << trackIndex << std::endl;
+            return;
+        }
+        tracks[trackIndex]->midiPlayback(msg); // Emit MIDI output signal for the selected track
+    }
+    
     void _createTracks() {
-            for (int i = 0; i < kMaxTracks; ++i) {
-                auto track = std::make_shared<Track>(audioContext, undoManager); // Create a new track
-                (*track->name.get()) = _createNewTrackName();
-                audioContext->connect(
-                    masterTrack->input, track->getOutput(), 0,
-                    0); // Connect track output to audio context destination
-                tracks.push_back(track); // Add the track to the list
+        
+        // Reserve space for 64 tracks
+        tracks = std::vector<std::shared_ptr<Track>>();
+        tracks.reserve(kMaxTracks); 
+
+        // create all 64 tracks
+        for (int i = 0; i < kMaxTracks; ++i) {
+            // Create a new track
+            auto track = std::make_shared<Track>(audioContext, undoManager);
+
+            // Set the track index
+            track->setTrackIndex(i);
+            (*track->name.get()) = _createNewTrackName();
+
+            // Forward MIDI input to the sequencer
+            track->midiOutput.connect(
+                [this](int trackIndex, choc::midi::ShortMessage &msg) {
+                  sequencer->onMidiInput(trackIndex, msg);
+                });
+
+            // Connect the track output to the master track input
+            audioContext->connect(
+                masterTrack->input, track->getOutput(), 0,
+                0); // Connect track output to audio context destination
+            tracks.push_back(track); // Add the track to the list
             }
             audioContext->synchronizeConnections(); // Synchronize connections
             selectTrack(0); // Select the first track by default
+    }
+
+    void _createBusses() {
+        for(int i = 0; i < kMaxBusses; ++i) {
+            auto bus = std::make_shared<Track>(audioContext, undoManager); // Create a new bus track
+            (*bus->name.get()) = "Bus " + std::to_string(i + 1); // Set bus name
+            audioContext->connect(
+                masterTrack->input, bus->getOutput(), 0,
+                0); // Connect bus output to audio context destination
+            tracks.push_back(bus); // Add the bus to the list
+        }
     }
     void _connectParams (){
         bpm.onValueChanged.connect([this](float value) {
@@ -198,6 +254,11 @@ private:
 
         returnToZero.onValueChanged.connect([this](bool value) {
             playhead->setReturnToZero(value);
+        });
+
+        tapTempoNode->onTempoCalculated.connect([this](double bpm) {
+            this->bpm.setValue(static_cast<float>(bpm)); // Update BPM when a new tempo is calculated
+            this->play();
         });
 
         displayPage.updateObservers();

@@ -39,7 +39,7 @@ static inline float mapFloat(float value, float inMin, float inMax, float outMin
 }
 
 
-inline float dBToLinear(float dB) { return std::pow(10.0f, dB / 10.0f); }
+inline float dBToLinear(float dB) { return std::pow(10.0f, dB / 20.0f); }
 
 inline float linearToDB(float linearValue) {
     return 20.0f * log10f(linearValue);

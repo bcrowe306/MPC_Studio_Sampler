@@ -43,6 +43,60 @@ public:
 
     void onActivated() override {
         // Connect signals and set up the page when activated
+        signalConnections.push_back(controlSurface->jogWheel->onOffset.connect([this](int offset) {
+            if(controlSurface->shiftButton->isPressed) {
+                mpcSampler->browser->page(offset);
+            } else {
+                mpcSampler->browser->scroll(offset);
+            }
+        }));
+        signalConnections.push_back(controlSurface->upButton->onPressed.connect([this]() {
+            mpcSampler->browser->scroll(-1);
+        }));
+        signalConnections.push_back(controlSurface->downButton->onPressed.connect([this]() {
+            mpcSampler->browser->scroll(1);
+        }));
+        
+        signalConnections.push_back(controlSurface->leftButton->onPressed.connect([this]() {
+            mpcSampler->browser->goBack();
+        }));
+
+        signalConnections.push_back(controlSurface->rightButton->onPressed.connect([this]() {
+            mpcSampler->browser->navigateToSelectedItem();
+        }));
+
+        signalConnections.push_back(controlSurface->plusButton->onPressed.connect([this]() {
+            if(controlSurface->shiftButton->isPressed) {
+                mpcSampler->browser->page(1);
+            } else {
+                mpcSampler->browser->scroll(1);
+            }
+        }));
+
+        signalConnections.push_back(controlSurface->minusButton->onPressed.connect([this]() {
+            if(controlSurface->shiftButton->isPressed) {
+                mpcSampler->browser->page(-1);
+            } else {
+                mpcSampler->browser->scroll(-1);
+            }   
+        }));
+
+        signalConnections.push_back(controlSurface->f4Button->onPressed.connect([this]() {
+            mpcSampler->browser->autoPreview = !mpcSampler->browser->autoPreview.get(); // Toggle auto-preview
+        }));
+
+        signalConnections.push_back(controlSurface->f5Button->onPressed.connect([this]() {
+            mpcSampler->browser->previewItem();
+        }));
+
+        signalConnections.push_back(controlSurface->f6Button->onPressed.connect([this]() {
+            auto selectedItem = mpcSampler->browser->getSelectedItem();
+            auto track = mpcSampler->project->selectedTrack();
+            if (selectedItem.is_regular_file() && selectedItem.path().extension() == ".wav") {
+                track->loadSample(selectedItem.path().string());
+            }
+        }));
+
         signalConnections.push_back( mpcSampler->browser->onScroll.connect( [this](int newOffset) 
             { 
                 updateBrowserView(); 

@@ -135,27 +135,36 @@ ControlSurface:
     Description: "Controls the transport of the MPC, including play, stop, record, and metronome. 4 buttons for transport controls, 1 button for metronome."
   GlobalComponent:
     Description: "Controls global settings such as tempo, time signature, and quantization. 1 knob for tempo, 1 knob for time signature, 1 button for quantization."
-  BrowserComponent:
-    Description: "Allows browsing and loading of samples, presets, and projects. 1 knob for browsing, 1 button for loading, 1 button for saving."
-  SettingsComponent:
-    Description: "Controls global settings such as audio device, sample rate, and buffer size"
+ 
 
-Component:
-  Name: "MPC Sampler Component"
-  Active: true
-  Controls:
-    - Type: "Button"
-      Name: "Play"
-      Action: "Play"
-    - Type: "Button"
-      Name: "Stop"
-      Action: "Stop"
-    - Type: "Button"
-      Name: "Record"
-      Action: "Record"
-    - Type: "Knob"
-      Name: "Volume"
-      Action: "Adjust Volume"
-    - Type: "Knob"
-      Name: "Pan"
-      Action: "Adjust Pan"
+
+Sequencer:
+  Description: Controls the playback and recording of the sequences.
+  LaunchQuantization: "Bar"
+  InputQuantization: "16th"
+  SelectedSequence:
+  State: 
+    Playing:
+    Recording:
+    Stopped:
+  Sequence: 
+    Name: "Seq 1"
+    Length: "4 Bars"
+    Functionality: Will take in midi input from the tracks and record it into the corresponding clip. On playback, it will receive timing info from playhead and play the clips back to the track.
+    
+    Clip: 
+      Name: "Track 1"
+      Length: "4 Bars"
+      Notes:
+        - Pitch: "C4"
+          Start: "1 Bar"
+          Duration: "1 Bar"
+          Velocity: 100
+        - Pitch: "E4"
+          Start: "2 Bars"
+          Duration: "1 Bar"
+          Velocity: 100
+        - Pitch: "G4"
+          Start: "3 Bars"
+          Duration: "1 Bar"
+          Velocity: 100

@@ -16,6 +16,7 @@ public:
     MPCSampler(){
         initialize(); // Initialize the sampler when created
         browser = make_shared<Browser>(audioEngine->context); // Initialize the browser
+        
     };
     ~MPCSampler(){
         uninitialize(); // Clean up resources when the sampler is destroyed
