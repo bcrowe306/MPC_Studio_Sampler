@@ -1,5 +1,7 @@
 * TODO
-    * Fix precount and sequences
+    * Fix volume on sample load
+    * Make screen controls activated and deacativated on page change.
+    * Make the SongPosition object the main source of truth for ticking and listeners
     * Add feedback from sequence and clips to their tracks for pad lighting
     * Implement Input Quantize
     * Figure out undo functionality with recording

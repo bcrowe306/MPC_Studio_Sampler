@@ -4,6 +4,7 @@
 #include "core/devices/sampler_device.h"
 #include "meter_node.h"
 #include "core/value_receiver.h"
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include "sigslot/signal.hpp"
@@ -47,14 +48,21 @@ public:
 
         this->context->connect(panNode, input, 0, 0);
         this->context->connect(volumeNode, panNode, 0, 0);
-        this->context->connect(meterNode, volumeNode, 0, 0);
+        this->context->connect(muteNode, volumeNode, 0, 0);
+        this->context->connect(meterNode, muteNode, 0, 0);
         this->context->connect(output, meterNode, 0, 0);
 
     }
 
 
     void setVolume(float volume) {
+        
         volumeNode->gain()->setValue(volume);
+    }
+
+    void setVolumeDb(float volumeDb) {
+        volumeDb = std::clamp(volumeDb, -60.0f, 6.0f); // Clamp volume to a range of -60 dB to 6 dB
+        volumeNode->gain()->setValue(dBToLinear(volumeDb));
     }
 
     void setPan(float pan) {
@@ -119,7 +127,7 @@ private:
 class Track {
   public:
     shared_ptr<VRString> name;  // Track name
-    shared_ptr<VRFloat> volume; // Track volume
+    shared_ptr<VRFloat> volumeDb; // Track volume
     shared_ptr<VRFloat> pan;    // Track pan
     shared_ptr<VRBool> mute;    // Track mute state
     shared_ptr<VRBool> solo;    // Track solo state
@@ -128,7 +136,7 @@ class Track {
     sigslot::signal<> onDeviceUpdate; // Signal emitted when the sampler device is changed
     sigslot::signal<int, choc::midi::ShortMessage&> midiOutput;
     Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
-          volume(make_shared<VRFloat>("Volume", 1.0f, 0.0, 1.0, 0.01, 0.001, undoManager)),
+          volumeDb(make_shared<VRFloat>("Volume", 0.0f, -60.0f, 6.0f, 1, 0.1, undoManager)),
           pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
           mute(make_shared<VRBool>("Mute", false, undoManager)),
           solo(make_shared<VRBool>("Solo", false, undoManager))
@@ -137,8 +145,8 @@ class Track {
        
 
         // Connect property changes to the TrackNode
-        volume->onValueChanged.connect([this](float value) {
-            trackNode->setVolume(value);
+        volumeDb->onValueChanged.connect([this](float value) {
+            trackNode->setVolumeDb(value);
         });
         pan->onValueChanged.connect([this](float value) {
             trackNode->setPan(value);
@@ -150,7 +158,7 @@ class Track {
             trackNode->setSolo(value);
         });
 
-        trackNode->setVolume(volume->getValue()); // Set initial volume
+        trackNode->setVolume(volumeDb->getValue()); // Set initial volume
         trackNode->setPan(pan->getValue());       // Set initial pan
         trackNode->setMute(mute->getValue());     // Set initial mute state
         trackNode->setSolo(solo->getValue());     // Set initial solo state
@@ -177,6 +185,7 @@ class Track {
         trackNode->midiInput(msg);
     }
     void midiInput(choc::midi::ShortMessage &msg) {
+        std::cout << "Track " << _trackIndex << " received MIDI input: " << msg.toHexString() << std::endl;
         trackNode->midiInput(msg); // Forward MIDI input to the track node
         midiOutput(_trackIndex, msg); // Emit MIDI output signal for the track to whoever is listening, ie sequencer
     }

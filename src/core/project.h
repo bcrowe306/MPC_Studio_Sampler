@@ -91,9 +91,9 @@ public:
 
     // Project parameters
     VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
-    ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>(
-        "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
+    ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>( "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
     VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
+    VRFloat metronomeVolumeDb = VRFloat("metronomeVolumeDb", -6.0f, -60.0f, 6.0f, 1.0, 0.01, undoManager); // Metronome volume in dB
     VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
     VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
     VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
@@ -251,6 +251,11 @@ private:
             metronomeNode->setEnabled(value);
         });
         metronomeEnabled.updateObservers(); // Ensure initial value is set
+
+        metronomeVolumeDb.onValueChanged.connect([this](float value) {
+            metronomeNode->setVolumeDb(value); // Set the metronome volume in dB
+        });
+        metronomeVolumeDb.updateObservers(); // Ensure initial value is set
 
         returnToZero.onValueChanged.connect([this](bool value) {
             playhead->setReturnToZero(value);

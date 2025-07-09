@@ -3,6 +3,7 @@
 #include <functional>
 #include "LabSound/LabSound.h"
 #include "audio/choc_MIDI.h"
+#include "util.h"
 using std::shared_ptr;
 using std::make_shared;
 
@@ -65,6 +66,12 @@ class MetronomeNode {
         void setVolume(float newVolume) {
             _volume = newVolume;
             clickGainNode->gain()->setValue(newVolume);
+        }
+
+        void setVolumeDb(float newVolumeDb) {
+            std::cout << "Setting metronome volume to " << newVolumeDb << " dB" << std::endl;
+            _volume = dBToLinear(newVolumeDb);
+            clickGainNode->gain()->setValue(_volume);
         }
         void setEnabled(bool enabled) {
             _enabled = enabled;

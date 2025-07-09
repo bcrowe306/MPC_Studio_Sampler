@@ -36,9 +36,7 @@ public:
    
 
     void setLengthInTicks(int newLengthInTicks) {
-        if (newLengthInTicks < 0) {
-            newLengthInTicks = 0; // Ensure length in ticks is non-negative
-        }
+        newLengthInTicks = std::max(newLengthInTicks, 480); // Ensure the new length is at least 480 ticks
         _length = newLengthInTicks;
         onSequenceChanged(); // Emit signal when the length in ticks changes
     }
@@ -65,6 +63,11 @@ public:
 
     void resetToStart(){
         _tickCounter = 0; // Reset the tick counter to start
+        _songPosition.tick = 0; // Reset song position tick
+        _songPosition.updateFromTick(_tickCounter, 4, 4); // Update song position
+        _songPosition.lengthInTicks = _length; // Set song position length in ticks
+        onSongPositionDisplayChanged(_songPosition); // Emit signal for song position display changes
+        onPlayheadPositionChanged(_songPosition); // Emit signal for playhead position changes
         onSequenceChanged(); // Emit signal when the sequence is reset
     }
 
@@ -101,7 +104,7 @@ public:
     void onTick(){
         switch(_state) {
             case SequenceState::Stopped:
-                _tickCounter = 0; // Reset tick counter when stopped
+                // Handle stopped state
                 break;
             case SequenceState::Triggered:
                 // Handle triggered state
@@ -149,7 +152,6 @@ public:
 
         if (isTickSixteenth(_tickCounter)) {
                 onSongPositionDisplayChanged(_songPosition);
-                std::cout << "Position:" << _songPosition.getSongPositionInBeatTime() << std::endl;
         }
 
         // Emit signal for playhead position changes

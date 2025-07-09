@@ -20,7 +20,7 @@ class Playhead{
 
         
         bool hasRunOnce = false; // Flag to check if the playhead has run
-        VRBool precount = VRBool("precount", false); // Value receiver for precount state
+        VRBool precount = VRBool("precount", true); // Value receiver for precount state
         VRInt precountBars = VRInt("precountBars", 1, 1, 4); // Value receiver for number of bars in precount
 
         shared_ptr<MidiClock> midiClock; // MIDI clock for timing
@@ -189,7 +189,9 @@ class Playhead{
             ++_ticks;
         }
 
-        void stoppedState(){}
+        void stoppedState(){
+            _precountTicks = 0; // Reset precount ticks
+        }
 
         void recordingState(){
             auto _timeSignature = midiClock->getTimeSignature(); // Get the current time signature
@@ -221,13 +223,13 @@ class Playhead{
             int ticksPerBar = kTPQN * _timeSignature.numerator;
             int ticksPerBeat = kTPQN / (_timeSignature.denominator / 4);
             int ticksPerSixteenth = ticksPerBar / 16;
-            bool isBar = (_ticks % ticksPerBar) == 0;
-            bool isBeat = (_ticks % ticksPerBeat) == 0;
-            bool isHalfBeat = (_ticks % (ticksPerBeat / 2)) == 0;
-            bool is16th = (_ticks % ticksPerSixteenth) == 0;
-            int bar = _ticks / ticksPerBar;
-            int beat = (_ticks % ticksPerBar) / ticksPerBeat;
-            int sixteenthNote = (_ticks % ticksPerBeat) / ticksPerSixteenth;
+            bool isBar = (_precountTicks % ticksPerBar) == 0;
+            bool isBeat = (_precountTicks % ticksPerBeat) == 0;
+            bool isHalfBeat = (_precountTicks % (ticksPerBeat / 2)) == 0;
+            bool is16th = (_precountTicks % ticksPerSixteenth) == 0;
+            int bar = _precountTicks / ticksPerBar;
+            int beat = (_precountTicks % ticksPerBar) / ticksPerBeat;
+            int sixteenthNote = (_precountTicks % ticksPerBeat) / ticksPerSixteenth;
 
             if (isHalfBeat) {
                 onMetronomeTick(isBar, isBeat, isHalfBeat);
@@ -239,7 +241,7 @@ class Playhead{
             }
 
             // Do precount logic
-            if(_precountTicks >= (precountBars.getValue() * ticksPerBar)) {
+            if(_precountTicks >= (precountBars.getValue() * ticksPerBar) - 1) {
                 // If the precount has reached the specified number of bars, switch to recording state
                 setState(PlayheadState::RECORDING); // Set the playhead state to recording
                 _precountTicks = 0; // Reset precount ticks

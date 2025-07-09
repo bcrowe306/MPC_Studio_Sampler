@@ -1,4 +1,5 @@
 #pragma once
+#include "core/midi_utils.h"
 #include "sigslot/signal.hpp"
 #include "ui/widgets/widgets.h"
 #include "ui/pages/page_widget.h"
@@ -110,15 +111,15 @@ public:
             }
 
             // Volume
-            trackConnections.push_back(selectedTrack->volume->onValueChanged.connect([this](float volume) {
-                volumeLabelWidget->set_text(fmt::format("{:.2f} dB", linearToDB(volume)));
+            trackConnections.push_back(selectedTrack->volumeDb->onValueChanged.connect([this](float volume) {
+                volumeLabelWidget->set_text(fmt::format("{:.2f} dB", volume));
                 meterWidget->setVolume(volume);
             }));
-            volumeLabelWidget->set_text(fmt::format("{:.2f} dB", linearToDB(selectedTrack->volume->getValue())));
-            meterWidget->setVolume(selectedTrack->volume->getValue());
+            volumeLabelWidget->set_text(fmt::format("{:.2f} dB", selectedTrack->volumeDb->getValue()));
+            meterWidget->setVolume(selectedTrack->volumeDb->getValue());
 
             trackConnections.push_back(controlSurface->jogWheel->onOffset.connect([this, selectedTrack](int offset) {
-                    selectedTrack->volume->setValue(selectedTrack->volume->getValue() + offset * 0.01f);
+                    selectedTrack->volumeDb->setValue(selectedTrack->volumeDb->getValue() + offset);
             }));
 
             // Solo
@@ -139,6 +140,9 @@ public:
             }));
             muteButtonWidget->setSelected(selectedTrack->mute->getValue());
 
+            
+            
+
         }
         else {
             headerSection->rightTextWidget->set_text("No Track");
@@ -153,11 +157,23 @@ public:
         signalConnections.push_back( mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1)) );
         onTrackSelected(); // Initialize with no track selected
 
+        auto seq = mpcSampler->project->sequencer->getSelectedSequence();
+        signalConnections.push_back(seq->onSongPositionDisplayChanged.connect([this](SongPosition songPosition) {
+            headerSection->songPositionWidget->set_text(songPosition.getSongPositionDisplay());
+        }));
 
         signalConnections.push_back(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
             headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
         }));
         headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
+
+        signalConnections.push_back(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
+            if(offset > 0) {
+                mpcSampler->project->metronomeVolumeDb.incrementValue(true);
+            } else if(offset < 0) {
+                mpcSampler->project->metronomeVolumeDb.decrementValue(true);
+            }
+        }));
 
 
     }

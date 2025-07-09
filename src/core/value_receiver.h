@@ -1,5 +1,6 @@
 #pragma once
 #include "core/command.h"
+#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <string>
@@ -257,7 +258,8 @@ public:
 
   void setValue(T newValue) {
     if (_value != newValue) {
-
+      // Clamp the new value to the min and max range
+      newValue = std::clamp(newValue, _min, _max);
       if (undoManager_) {
         // Create a command to undo the change
         auto command = std::make_shared<Command>(

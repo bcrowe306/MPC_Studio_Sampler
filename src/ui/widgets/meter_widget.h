@@ -11,6 +11,7 @@
 #include <string>
 #include <cmath>
 #include <iostream>
+#include "util.h"
 
 class MeterWidget : public Widget {
 public:
@@ -24,12 +25,20 @@ public:
 
     void setVolume(float volume) {
         if(volume == _volume) return; // Avoid unnecessary updates
-        _volume = std::clamp(volume, 0.0f, 1.0f);
+        _volume = std::clamp(volume, _volMin, _volMax);
         render();
     }
 
     float getVolume() const {
         return _volume;
+    }
+
+    void setVolumeRange(float min, float max) {
+        // Ensure volume is clamped between min and max
+        _volMin = min;
+        _volMax = max;
+        _volume = std::clamp(_volume, _volMin, _volMax);
+        render();
     }
 
     void setMeters(float left, float right) {
@@ -49,8 +58,8 @@ public:
         if(newLeftHeight == _leftHeight && newRightHeight == _rightHeight && volume == _volume) return; // Avoid unnecessary updates
         _leftHeight = newLeftHeight;
         _rightHeight = newRightHeight;
-        // Ensure volume is clamped between 0 and 1
-        _volume = std::clamp(volume, 0.0f, 1.0f);
+        // Ensure volume is clamped between _volMin and _volMax
+        _volume = std::clamp(volume, _volMin, _volMax);
         render();
     }
 
@@ -63,7 +72,7 @@ public:
         auto new_position = position + offset;
         auto padding = 2.0;
 
-        auto volumeHeight = height - (_volume * height);
+        auto volumeHeight = height - mapFloat(_volume, _volMin, _volMax, 0.0, height);
 
         auto meterWidth = ((double)width / 3) - (padding * 2);
         // draw left meter
@@ -77,6 +86,8 @@ public:
     }
 
 protected:
+    float _volMin = -60.0f; // Minimum volume in dB
+    float _volMax = 6.0f;   // Maximum volume in dB
     float _volume;
     float _leftHeight;
     float _rightHeight;
