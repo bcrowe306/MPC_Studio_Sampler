@@ -3,30 +3,45 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <vector>
+#include "LabSound/core/AudioContext.h"
+#include "LabSound/extended/FunctionNode.h"
 #include "sigslot/signal.hpp"
 #include <string>
 #include <fmt/format.h>
 #include "core/constants.h"
 #include "midi_utils.h"
+#include "LabSound/LabSound.h"
+#include <memory>
 
 using std::string;
+using std::shared_ptr;
+using std::make_shared;
 
 
-class MidiClock {
+class Timer {
     public:
 
         // Constructor
 
-        MidiClock(double sampleRate, double bpm)
+        Timer(shared_ptr<lab::AudioContext> ac, double sampleRate, double bpm)
             : sampleRate(sampleRate), _bpm(bpm) {
+            timerNode = make_shared<lab::FunctionNode>(*ac.get());
+            timerNode->setFunction([this](lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
+                processBlock(r.context()->sampleRate(), bufferSize);
+            });
+            timerNode->start(0.0); // Start the timer node at time 0
             updateTiming();
         }
 
         // Signals
-        sigslot::signal<> onTick; // Signal for beat changes
+        sigslot::signal<int> onTick; // Signal transport
         sigslot::signal<TimeSignature> onTimeSignatureChanged; // Signal for time signature changes
         sigslot::signal<double> onBPMChanged; // Signal for BPM changes
+
+        std::shared_ptr<lab::FunctionNode> timerNode; // Node representing the timer
+
         void setBPM(double newBPM) {
             if (newBPM != _bpm) {
                 _bpm = std::clamp(newBPM, kBPM_MIN, kBPM_MAX);
@@ -83,14 +98,13 @@ class MidiClock {
         void processBlock(double sampleRate, int blockSize) {
             setSampleRate(sampleRate);
 
-            if (!_enabled) {
-                return; // Skip processing if the clock is disabled
-            }
+            
 
             double samplesThisBlock = blockSize / _samplesPerTick;
             _samplesAccumulator += samplesThisBlock;
     
             while (_samplesAccumulator >= 1.0) {
+                
                 _samplesAccumulator -= 1.0;
                 _onTick();  // Callback or user hook
                 
@@ -101,27 +115,12 @@ class MidiClock {
             _samplesAccumulator = 0.0;
         }
 
-        void stop(bool doReset = true) {
-            _enabled = false; // Disable the clock
-            if (doReset) {
-                reset(); // Reset the clock if requested
-            }
-        }
 
-        void start() {
-            _enabled = true; // Enable the clock
-
-        }
-
-        bool isEnabled() const {
-            return _enabled; // Check if the clock is enabled
-        }
     
     private:
-        bool _enabled = false; // Whether the clock is enabled
-
         void _onTick(){
-            onTick();
+            onTick(_tickCounter);
+            _tickCounter++;
         }
 
 
@@ -130,6 +129,7 @@ class MidiClock {
         TimeSignature _timeSignature = {4, 4}; // Default to 4/4 time signature
         double _samplesPerTick = 0.0;
         double _samplesAccumulator = 0.0;
+        int _tickCounter = 0;
     
         void updateTiming() {
             _samplesPerTick = (60.0 / (_bpm * kTPQN)) * sampleRate;

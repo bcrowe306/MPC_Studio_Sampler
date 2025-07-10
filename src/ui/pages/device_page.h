@@ -20,6 +20,7 @@ public:
     vector<shared_ptr<FunctionWidget>> functionWidgets;
     vector<shared_ptr<ParameterWidget>> parameterWidgets;
     vector<sigslot::connection> trackConnections;
+    vector<sigslot::connection> seqConnections;
     shared_ptr<ButtonWidget> outputWidget;
     shared_ptr<MeterWidget> meterWidget;
     shared_ptr<ButtonWidget> soloButtonWidget;
@@ -40,6 +41,10 @@ public:
                 connection.disconnect();
             }
             trackConnections.clear();
+            for(auto &connection : seqConnections) {
+                connection.disconnect();
+            }
+            seqConnections.clear();
         });
     }
 
@@ -84,10 +89,26 @@ public:
     void onFrame() override {
         auto track = mpcSampler->project->selectedTrack();
         if (track) {
-            auto levelMeters = track->getLevelMeters();
+            auto levelMeters = track->getLevelRMSdB();
             float minDb = -60.0f;
             meterWidget->setMeters(mapFloat(levelMeters.left, minDb, 0.0f, 0.0f, 1.0f), mapFloat(levelMeters.right, minDb, 0.0f, 0.0f, 1.0f));
         }
+    }
+
+    void onSeqSelected(){
+        for(auto &connection : seqConnections) {
+            connection.disconnect();
+        }
+        seqConnections.clear();
+
+
+        // Sequence Song Position Display
+        auto seq = mpcSampler->project->sequencer->getSelectedSequence();
+        seqConnections.push_back(seq->onSongPositionDisplayChanged.connect([this](SongPosition songPosition) {
+            headerSection->songPositionWidget->set_text(songPosition.getSongPositionDisplay());
+        }));
+
+
     }
 
     void onTrackSelected(int trackIndex = -1) {
@@ -150,7 +171,18 @@ public:
     void onActivated() override {
         signalConnections.push_back( mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1)) );
         onTrackSelected(); // Initialize with no track selected
-        
+
+        addConnection(mpcSampler->project->sequencer->onSequenceSelected.connect([this](int index) {
+            onSeqSelected();
+        }));
+        onSeqSelected();
+
+        // Sequence Number
+        addConnection(mpcSampler->project->sequencer->onSequenceSelected.connect([this](int sequenceIndex) {
+            headerSection->sequenceNumberWidget->setValue(fmt::format("{}", sequenceIndex + 1));
+        }));
+        headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
+
         // Input Quantize
         addConnection(controlSurface->f3Button->onPressed.connect([this]() {
            mpcSampler->project->inputQuantize.setValue(!mpcSampler->project->inputQuantize.getValue());
@@ -162,10 +194,6 @@ public:
         }));
 
 
-        auto seq = mpcSampler->project->sequencer->getSelectedSequence();
-        signalConnections.push_back(seq->onSongPositionDisplayChanged.connect([this](SongPosition songPosition) {
-            headerSection->songPositionWidget->set_text(songPosition.getSongPositionDisplay());
-        }));
 
         signalConnections.push_back(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
             headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));

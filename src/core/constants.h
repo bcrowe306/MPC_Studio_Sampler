@@ -1,4 +1,7 @@
 #pragma once
+#include <string>
+
+static inline std::string MPC_STUDIO_BLACK_DEVICE_NAME = "MPC Studio Black MPC Private";
 static constexpr float A440_freq = 440.0f;
 static constexpr int A440_note = 69;
 static inline const int kTPQN = 480; // Ticks per quarter note

@@ -19,10 +19,10 @@ public:
   HeaderSection()
       : Widget(0, 0, 360, 13) {
 
-    bpmWidget = make_shared<TextWidget>(60, 0, 60, 11, "120.00 BPM", 11, "center");
+    bpmWidget = make_shared<TextWidget>(60, 0, 60, 11, "120.00 BPM", 11, "left");
     this->add_child(bpmWidget);
 
-    inputQuantizeButton =  make_shared<LabelButton>(130, 0, 60, 11, "InQ", "1/16");
+    inputQuantizeButton =  make_shared<LabelButton>(120, 0, 60, 11, "iQ", "1/16");
     this->add_child(inputQuantizeButton);
 
     songPositionWidget = make_shared<TextWidget>(175, 0, 60, 11, "1 . 1 . 1", 11, "center");

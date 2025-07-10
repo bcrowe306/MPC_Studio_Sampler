@@ -39,13 +39,15 @@ inline const std::vector<std::string> kDisplayPageNames = {
 
 class Project {
 public:
-    Project(std::shared_ptr<AudioContext> audioContext) {
+    Project(std::shared_ptr<AudioContext> audioContext, std::shared_ptr<Timer> timer) {
         // Initialize the project with an empty track list
         this->audioContext = audioContext;
+        this->timer = timer; // Set the MIDI clock for the project
+
         masterTrack = std::make_shared<TrackNode>(audioContext);
         cueTrack = std::make_shared<TrackNode>(audioContext);
         metronomeNode = std::make_shared<MetronomeNode>(audioContext);
-        playhead = std::make_shared<Playhead>(audioContext);
+        playhead = std::make_shared<Playhead>(timer); // Initialize the playhead with the audio context and MIDI clock
         undoManager = std::make_shared<UndoManager>(audioContext); // Initialize the undo manager
         tapTempoNode = std::make_shared<TapTempoNode>(audioContext); // Initialize the tap tempo node
         sequencer = std::make_shared<Sequencer>(); // Initialize the sequencer
@@ -56,7 +58,6 @@ public:
        
         audioContext->connect(audioContext->destinationNode(), masterTrack->output, 0, 0); 
         audioContext->connect(audioContext->destinationNode(), cueTrack->output, 0, 0); 
-        audioContext->connect(audioContext->destinationNode(), playhead->playheadNode, 0, 0);
         audioContext->connect(cueTrack->input, metronomeNode->clickGainNode, 0, 0); // Connect metronome output to audio context destination
         audioContext->synchronizeConnections(); // Synchronize connections after setup
 
@@ -83,6 +84,7 @@ public:
     shared_ptr<TrackNode> masterTrack;
     shared_ptr<TrackNode> cueTrack; // Cue track for the project
     shared_ptr<AudioContext> audioContext; // Audio context for the project
+    shared_ptr<Timer> timer; // MIDI clock for the project
     shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
     shared_ptr<Playhead> playhead; // Playhead for the project
     shared_ptr<UndoManager> undoManager; // Undo manager for the project
@@ -99,6 +101,7 @@ public:
     VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
     VRBool inputQuantize = VRBool("inputQuantize", true, undoManager); // Input quantization parameter
     // IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
+
 
     void serialize() {
         // Implement serialization logic if needed
@@ -170,7 +173,7 @@ public:
 
     void togglePlay() {
         playhead->togglePlaying(); // Toggle play/pause state
-        if (playhead->midiClock->isEnabled()) {
+        if (playhead->isPlaying()) {
             onIsPlaying(true); // Emit signal that playback has started
         } else {
             onIsPlaying(false); // Emit signal that playback has stopped

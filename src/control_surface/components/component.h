@@ -40,6 +40,10 @@ public:
         mpcSampler = controlSurface->mpcSampler; // Initialize the MPC Sampler reference
     };
 
+    void addConnection(const sigslot::connection &conn) {
+        controlConnections.push_back(conn); // Add a new connection to the vector
+    };
+
     virtual ~Component() = default;
     void activate() {
         beforeActivate(); // Emit the beforeActivate signal

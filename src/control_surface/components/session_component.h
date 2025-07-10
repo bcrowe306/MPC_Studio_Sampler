@@ -23,26 +23,58 @@ public:
     void onActivateComponent() override {
         std::cout << "SessionComponent activated.\n";
         
-        controlConnections.emplace_back(controlSurface->pads->onMidiIn.connect([this](int index, choc::midi::ShortMessage &msg) {
+        addConnection(controlSurface->fullLevelButton->onPressed.connect([this]() {
+            controlSurface->mpcSampler->fullLevel->toggleEnabled();
+        }));
+        
+        addConnection(mpcSampler->fullLevel->enabled.onValueChanged.connect([this](bool enabled) {
+            if(enabled) {
+                controlSurface->fullLevelButton->sendColor(TwoColorButtonControl::Colors::COLOR1); // Set button color to yellow when enabled
+            } else {
+                controlSurface->fullLevelButton->sendColor(TwoColorButtonControl::Colors::OFF); // Set button color to off when disabled
+            }
+        }));
+
+        addConnection(controlSurface->plusButton->onPressed.connect([this]() {
+            mpcSampler->project->sequencer->nextSequence(); // Select the next sequence
+        }));
+
+        addConnection(controlSurface->minusButton->onPressed.connect([this]() {
+            mpcSampler->project->sequencer->previousSequence(); // Select the previous sequence
+        }));
+
+        addConnection(controlSurface->noteRepeatButton->onPressed.connect([this]() {
+            controlSurface->mpcSampler->noteRepeat->toggleEnabled();
+        }));
+
+        addConnection(mpcSampler->noteRepeat->enabled.onValueChanged.connect([this](bool enabled) {
+            if(enabled) {
+                controlSurface->noteRepeatButton->sendColor(OneColorButtonControl::Colors::ON); // Set button color to yellow when enabled
+            } else {
+                controlSurface->noteRepeatButton->sendColor(OneColorButtonControl::Colors::OFF); // Set button color to off when disabled
+            }
+        }));
+
+        addConnection(controlSurface->pads->onMidiIn.connect([this](int index, choc::midi::ShortMessage &msg) {
             onPadsPlay(index, msg);
         }));
-        controlConnections.emplace_back(controlSurface->padBankAButton->onPressed.connect([this]() {
+        addConnection(controlSurface->padBankAButton->onPressed.connect([this]() {
             onPadBankAButtonPressed();
         }));
-        controlConnections.emplace_back(controlSurface->padBankBButton->onPressed.connect([this]() {
+        addConnection(controlSurface->padBankBButton->onPressed.connect([this]() {
             onPadBankBButtonPressed();
         }));
-        controlConnections.emplace_back(controlSurface->padBankCButton->onPressed.connect([this]() {
+        addConnection(controlSurface->padBankCButton->onPressed.connect([this]() {
             onPadBankCButtonPressed();
         }));
-        controlConnections.emplace_back(controlSurface->padBankDButton->onPressed.connect([this]() {
+        addConnection(controlSurface->padBankDButton->onPressed.connect([this]() {
             onPadBankDButtonPressed();
         }));
-        controlConnections.emplace_back(controlSurface->mpcSampler->project->onTrackSelected.connect([this](int trackIndex) {
+        addConnection(controlSurface->mpcSampler->project->onTrackSelected.connect([this](int trackIndex) {
             onTrackSelected(trackIndex);
         }));
 
-        controlConnections.emplace_back(mpcSampler->project->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
+        addConnection(mpcSampler->project->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
             padFeedback(trackIndex, msg);
         }));
 
@@ -90,9 +122,9 @@ public:
         
         auto track = mpcSampler->project->getTracks()[trackToPlay]; // Get the track from the project
         if (track) {
-            track->midiInput(msg); // Forward the MIDI message to the track
+            mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
+            mpcSampler->sendMidiInput(msg);
         }
-        mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
 
     };
 

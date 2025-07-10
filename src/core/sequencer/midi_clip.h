@@ -1,5 +1,6 @@
 #pragma once
 #include "midi_event.h"
+#include <iostream>
 #include <vector>
 
 using std::vector;
@@ -41,7 +42,28 @@ public:
     ~MidiClip() = default;
 
     void addEvent(MidiEvent event) {
+        // Add event to the clip. If an event with the same pitch and startTick already exists, replace it
         event.id = _midiEventId++; // Assign a unique ID to the event
+        auto it = std::find_if(events.begin(), events.end(),
+                               [&event](const MidiEvent &e) {
+                                   return e.pitch == event.pitch && e.startTick == event.startTick;
+                               });
+        if (it != events.end()) {
+            // If an existing event is found, update it with new duration, velocity, and ID
+            std::cout << "Updating existing event with ID: " << it->id << std::endl;
+            it->duration = event.duration;
+            it->velocity = event.velocity;
+            it->id = event.id;
+            onClipChanged(); // Emit signal when the clip changes
+            return;
+        }
+        // If no existing event is found, add the new event
+        if (event.startTick < 0) {
+            event.startTick = 0; // Ensure startTick is not negative
+        }
+ 
+
+        // Assign a unique ID to the event
         events.push_back(std::move(event)); // Add a new MIDI event to the clip
         onClipChanged(); // Emit signal when the clip changes
     }

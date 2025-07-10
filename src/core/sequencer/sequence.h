@@ -6,6 +6,8 @@
 #include "sigslot/signal.hpp"
 #include <iostream>
 
+enum class LQ_VALUE { BEAT, BAR, BAR_2, BAR_4, SEQUENCE_END };
+
 class Sequence {
     
 public:
@@ -22,6 +24,7 @@ public:
     sigslot::signal<SongPosition> onSongPositionDisplayChanged; // Signal for song position display changes, emitted every sixteenth note
     bool inputQuantize = true; // Flag for input quantization
     QUANTIZATION_VALUE quantizationValue = QUANTIZATION_VALUE::SIXTEENTH; // Default quantization value
+    
     int id; // Unique identifier for the sequence
     vector<MidiClip> clips; // List of MIDI clips in the sequence
     
@@ -33,9 +36,34 @@ public:
         for(int i = 0; i < 64; i++) {
             clips.emplace_back(_clipId++); // Initialize clips with unique IDs
         }
+        setLQValue(_lqValue); // Set the launch quantization value
     }
    
+    void setLQValue(LQ_VALUE value) {
+        _lqValue = value; // Set the launch quantization value
+        switch (_lqValue) {
+            case LQ_VALUE::BEAT:
+                _lqTicks = kTPQN; // Set ticks for beat quantization
+                break;
+            case LQ_VALUE::BAR:
+                _lqTicks = kTPQN * 4; // Set ticks for bar quantization
+                break;
+            case LQ_VALUE::BAR_2:
+                _lqTicks = kTPQN * 8; // Set ticks for 2 bars quantization
+                break;
+            case LQ_VALUE::BAR_4:
+                _lqTicks = kTPQN * 16; // Set ticks for 4 bars quantization
+                break;
+            case LQ_VALUE::SEQUENCE_END:
+                _lqTicks = -1; // No quantization for sequence end
+                break;
+        
+        }
+    }
 
+    void setLaunchQuantization(bool enabled) {
+        _lq = enabled; // Set the launch quantization flag
+    }
     void setLengthInTicks(int newLengthInTicks) {
         newLengthInTicks = std::max(newLengthInTicks, 480); // Ensure the new length is at least 480 ticks
         _length = newLengthInTicks;
@@ -76,8 +104,12 @@ public:
         onSequenceChanged(); // Emit signal when the sequence is cleared
     }
     void setNextState(SequenceState newState) {
-        _state = newState; // Set the new state of the sequence
-        
+        if(_lq){
+            _pendingState = newState; // Store the pending state for launch quantization
+        }
+        else {
+            _state = newState; // Set the state immediately if launch quantization is not enabled
+        }
     }
 
     void onMidiInput(int trackIndex, ShortMessage msg) {
@@ -101,10 +133,25 @@ public:
         }
     }
 
-    void onTick(){
+    void onTick(int tick){
+        // Determine launch event
+        if (_lqTicks > 0) {
+
+                // Trigger launch event
+                if (tick % _lqTicks == 0) {
+                  gotoNextState(); // Switch to the pending state if launch
+                                   // quantization is enabled
+                }
+        }
+        // Sequence End launch event
+        else if (_lqTicks >= 0) {
+                if (_songPosition.tick == _length) {
+                  gotoNextState();
+                }
+        }
         switch(_state) {
             case SequenceState::Stopped:
-                // Handle stopped state
+                stoppedState();
                 break;
             case SequenceState::Triggered:
                 // Handle triggered state
@@ -119,6 +166,30 @@ public:
             case SequenceState::Stopping:
                 // Handle stopping state
                 break;
+        }
+
+        
+    }
+
+    void stoppedState() {
+        // Handle stopped state
+        _songPosition.tick = 0; // Reset the song position tick
+        _songPosition.updateFromTick(4, 4); // Update the song position
+        _songPosition.lengthInTicks = _length; // Set the length in ticks for the song position
+        onSongPositionDisplayChanged(_songPosition); // Emit signal for song position display changes
+        onPlayheadPositionChanged(_songPosition); // Emit signal for playhead position changes
+    }
+
+    void gotoNextState() {
+        _state = _pendingState; // Switch to the pending state
+    }
+
+    void onPrecountTick(int precountTick, int precountTickLength) {
+        // Handle precount tick
+        if (_state == SequenceState::Recording) {
+            _precountTicks = precountTick; // Update the song position tick
+            _precountLengthInTicks = precountTickLength; // Set the length in ticks for the song position
+            
         }
     }
     
@@ -176,15 +247,20 @@ public:
         }
     }
 
-    
 
 protected:
 
     SongPosition _songPosition;
+    int _precountTicks = 0; // Ticks during precount
+    int _precountLengthInTicks = 0; // Length of the precount in ticks
     int _length = kDefaultSequenceLengthInTicks; // Length of the sequence in ticks
     int _clipId = 0; // Unique ID for clips in this sequence
     SequenceState _state = SequenceState::Stopped; // Current state of the sequence
     std::unordered_map<int, std::pair<int, ShortMessage>> activeNotes;
+    SequenceState _pendingState;
+    LQ_VALUE _lqValue = LQ_VALUE::BAR; // Default launch quantization value
+    int _lqTicks = 0; // Ticks for launch quantization
+    bool _lq = true; // Flag for launch quantization
 
 
     void _incrementTick() {
@@ -206,7 +282,7 @@ protected:
             if (msg.isNoteOn()) {
 
                 activeNotes[msg.getNoteNumber()] = std::make_pair(
-                    _songPosition.tick, msg); // Store active note with its track index
+                    _calcEventTick(), msg); // Store active note with its track index
 
             } else if (msg.isNoteOff()) {
                 auto it = activeNotes.find(msg.getNoteNumber());
@@ -215,10 +291,6 @@ protected:
                     ShortMessage startMsg = it->second.second;
                     int endTick = _songPosition.tick;
                     MidiEvent noteEvent(startTick, endTick, startMsg, msg);
-                    
-                    if(inputQuantize) {
-                        noteEvent.startTick = quantizeTick(noteEvent.startTick, quantizationValue);
-                    }
 
                     clip.addEvent(noteEvent);
 
@@ -230,6 +302,23 @@ protected:
                 auto event = MidiEvent(_songPosition.tick, msg);
                 clip.addEvent(event);
             }
+    }
+
+    int _calcEventTick(bool isEndTick = false){
+        // Function encapsulates the logic to determine the tick of an event
+        auto currentTick = _songPosition.tick; // Get the current tick from the song position
+
+        // Wrap the tick if it exceeds the sequence length
+        if (currentTick >= _length) {
+            currentTick = 0; // Reset to the start of the sequence
+        }
+        if (currentTick < 0) {
+            currentTick = 0; // Ensure the tick is not negative
+        }
+        if (inputQuantize && !isEndTick) {
+            currentTick = quantizeTick(currentTick, quantizationValue); // Quantize the tick if input quantization is enabled
+        }
+        return currentTick; // Return the calculated tick
     }
     
 };

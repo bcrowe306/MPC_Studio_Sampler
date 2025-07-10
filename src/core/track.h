@@ -71,7 +71,6 @@ public:
 
     void setMute(bool mute) {
         auto gainValue = mute ? 0.0f : 1.0f; // Set gain to 0 if muted, otherwise 1
-        std::cout << "Setting mute to " << (mute ? "true" : "false") << ": " << gainValue << std::endl; // Debug output
         muteNode->gain()->setValue(gainValue);
     }
 
@@ -192,12 +191,44 @@ class Track {
         return nullptr; // Return nullptr if no sampler device is present
     }
 
-    LevelMeters getLevelMeters() {
+    LevelMeters getLevelRMSdB() {
         LevelMeters meters;
         if (trackNode->meterNode) {
             auto res = trackNode->meterNode->rmsDb();
             meters.left = res[0];  // Get left channel level
             meters.right = res[1]; // Get right channel level
+        }
+        return meters; // Return the current level meters
+    }
+
+    LevelMeters getLevelPeakdB() {
+        LevelMeters meters;
+        if (trackNode->meterNode) {
+            auto res = trackNode->meterNode->db();
+            meters.left = res[0];  // Get left channel peak
+            meters.right = res[1]; // Get right channel peak
+        }
+        return meters; // Return the current level meters
+    }
+
+    LevelMeters getLevelRMSLinear() {
+        LevelMeters meters;
+        if (trackNode->meterNode) {
+            auto res = trackNode->meterNode->rmsDbLinear();
+            meters.left = res[0];  // Get left channel level
+            meters.right = res[1]; // Get right channel level
+            onLevelMetersChanged(meters.left, meters.right); // Emit signal with the current level meters
+        }
+        return meters; // Return the current level meters
+    }
+
+    LevelMeters getLevelPeakLinear() {
+        LevelMeters meters;
+        if (trackNode->meterNode) {
+            auto res = trackNode->meterNode->dbLinear();
+            meters.left = res[0];  // Get left channel peak
+            meters.right = res[1]; // Get right channel peak
+            onLevelMetersChanged(meters.left, meters.right); // Emit signal with the current level meters
         }
         return meters; // Return the current level meters
     }

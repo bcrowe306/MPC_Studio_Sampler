@@ -1,9 +1,7 @@
 * TODO
-    * Implement Input Quantize
     * Figure out undo functionality with recording
     * Try out the ModesComponent so pads can have different modes
     * display needs feedback about precount, song position selected sequence, etc..
-    * fix volume meter to display dB correctly
     * Waveform generation: Implement zooming and windowing
     * File Loading: Think about loading files on another thread to not block ui thread
     * Threading:  need to think about thread pools to accomplish tasks that can't block.

@@ -22,6 +22,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Pal::Sigslot)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/ui)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/control_surface)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/core)
+add_subdirectory(${CMAKE_SOURCE_DIR}/src/core/midi)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/ui)
 

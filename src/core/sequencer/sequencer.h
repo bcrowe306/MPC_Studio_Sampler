@@ -10,6 +10,8 @@
 using std::shared_ptr;
 using std::make_shared;
 
+
+
 class Sequencer : public enable_shared_from_this<Sequencer> {
     // Sequencer class to manage multiple sequences and their states
 public:
@@ -25,7 +27,22 @@ public:
     }
     ~Sequencer() = default;
 
-    
+    void setLQValue(LQ_VALUE value) {
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->setLQValue(value);
+            }
+        }
+    }
+
+    void setLaunchQuantization(bool enabled) {
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->setLaunchQuantization(enabled);
+            }
+        }
+    }
+
     void setInputQuantize(bool enabled) {
         for(auto &seq : sequences) {
             if (seq) {
@@ -73,6 +90,7 @@ public:
         onSequenceSelected(_currentSequenceIndex); // Emit signal when a sequence is selected
     }
 
+    // Returns the currently selected sequence
     shared_ptr<Sequence> getSelectedSequence() {
         if (_currentSequenceIndex < 0 || _currentSequenceIndex >= static_cast<int>(sequences.size())) {
             return nullptr; // Invalid sequence ID
@@ -80,12 +98,19 @@ public:
         return sequences[_currentSequenceIndex]; // Return the currently selected sequence
     }
 
-    void incrementSelectedSequence() {
+    // Returns the index of the currently selected sequence
+    int getSelectedSequenceIndex() const {
+        return _currentSequenceIndex; // Return the index of the currently selected sequence
+    }
+
+    // Selects the next sequence in the list, wrapping around if necessary
+    void nextSequence() {
         _currentSequenceIndex = (_currentSequenceIndex + 1) % sequences.size(); // Increment the sequence index
         selectSequence(_currentSequenceIndex); // Select the next sequence
     }
 
-    void decrementSelectedSequence() {
+    // Selects the previous sequence in the list, wrapping around if necessary
+    void previousSequence() {
         _currentSequenceIndex = (_currentSequenceIndex - 1 + sequences.size()) % sequences.size(); // Decrement the sequence index
         selectSequence(_currentSequenceIndex); // Select the previous sequence
     }
@@ -111,7 +136,16 @@ public:
         // Tick all sequences
         for (auto &seq : sequences) {
             if (seq) {
-                seq->onTick(); // Call the tick method for each sequence
+                seq->onTick(ticks); // Call the tick method for each sequence
+            }
+        }
+    }
+
+    void onPrecountTick(int precountTick, int precountTickLength){
+        // Handle precount tick for all sequences
+        for (auto &seq : sequences) {
+            if (seq) {
+                seq->onPrecountTick(precountTick, precountTickLength); // Call the precount tick method for each sequence
             }
         }
     }
@@ -149,7 +183,7 @@ public:
 
 protected:
     int _currentSequenceIndex; // Index of the currently active sequence
-
+    
     void _createSequences(){
         for(int i = 0; i < kMaxSequences; i++) {
              auto seq = make_shared<Sequence>(i);
