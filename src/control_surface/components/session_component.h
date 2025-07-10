@@ -42,12 +42,48 @@ public:
             onTrackSelected(trackIndex);
         }));
 
+        controlConnections.emplace_back(mpcSampler->project->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
+            padFeedback(trackIndex, msg);
+        }));
+
         setTrackBankIndex(trackBankIndex); // Set the initial track bank index
     };
 
     void onDeactivateComponent() override {
         
     };
+
+    void padFeedback(int trackIndex, choc::midi::ShortMessage &msg){
+        // Handle pad feedback here if needed
+        int relativeIndex = trackIndex - trackBankIndex * 16;
+        if (relativeIndex >= 0 && relativeIndex < 16){
+            auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[relativeIndex].get());
+            auto selectedTrackIndex = mpcSampler->project->selectedTrackIndex();
+            if(msg.isNoteOn()){
+                if (padControl) {
+                    padControl->sendColor(PadControl::PAD_COLOR::YELLOW_FULL); // Set pad color to yellow when note is on
+                }
+            } else if (msg.isNoteOff()) {
+                if (padControl) {
+                    if (selectedTrackIndex == trackIndex) {
+                        padControl->sendColor(PadControl::PAD_COLOR::RED_FULL); // Highlight the selected pad
+                    } 
+                    else {
+                        // Check if the track is empty
+                        auto track = mpcSampler->project->getTracks()[trackIndex];
+                        if (track && track->isTrackEmpty()) {
+                            padControl->sendColor(PadControl::PAD_COLOR::OFF); // Indicate empty track with green
+                        } else {
+                            padControl->sendColor(PadControl::PAD_COLOR::GREEN_HALF); // Reset color if not empty
+                        }
+                    }
+                    
+                }
+            } else {
+                std::cout << "Received unsupported MIDI message type for pad feedback.\n"; // Handle unsupported message types
+            }
+        }
+    }
 
     void onPadsPlay(int index, choc::midi::ShortMessage &msg) {
         int trackToPlay = index + trackBankIndex * 16; // Calculate the track index based on the pad index and bank

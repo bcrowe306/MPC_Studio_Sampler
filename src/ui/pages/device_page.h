@@ -33,6 +33,14 @@ public:
     {
         _title = title;
         createWidgets();
+        deactivatedSignal.connect([this]() {
+
+            // Clear track connections when the page is deactivated
+            for (auto &connection : trackConnections) {
+                connection.disconnect();
+            }
+            trackConnections.clear();
+        });
     }
 
     ~DevicePage() override {
@@ -47,9 +55,7 @@ public:
           functionWidgets.push_back(functionWidget);
           this->add_child(functionWidget);
         }
-        functionWidgets[3]->setLabel("Output");
-        functionWidgets[4]->setLabel("Solo");
-        functionWidgets[5]->setLabel("Mute");
+        
 
         for (int i = 0; i < 4; i++) {
           auto parameterWidget = make_shared<ParameterWidget>(
@@ -60,15 +66,10 @@ public:
         }
         outputWidget = make_shared<ButtonWidget>(60 * 5 + 4, 68, 54, 13,
                                                       "Main", false, 11);
-        meterWidget =
-            make_shared<MeterWidget>(333, 13, 27, 39, .5, 0.9f, 0.7f);
-        soloButtonWidget =
-            make_shared<ButtonWidget>(303, 40, 15, 14, "s", false, 10);
-        muteButtonWidget =
-            make_shared<ButtonWidget>(317, 40, 15, 14, "m", false, 10);
-        volumeLabelWidget = make_shared<TextWidget>(
-            300, 55, 58, 11, fmt::format("{:.2f} dB", linearToDB(.5)), 11,
-            "center");
+        meterWidget = make_shared<MeterWidget>(333, 13, 27, 39, .5, 0.9f, 0.7f);
+        soloButtonWidget = make_shared<ButtonWidget>(303, 40, 15, 14, "s", false, 10);
+        muteButtonWidget = make_shared<ButtonWidget>(317, 40, 15, 14, "m", false, 10);
+        volumeLabelWidget = make_shared<TextWidget>( 300, 55, 58, 11, fmt::format("{:.2f} dB", linearToDB(.5)), 11, "center");
         headerSection = make_shared<HeaderSection>();
         waveformSection = make_shared<WaveformSection>(60, 12, 240, 34, "Waveform");
         this->add_child(outputWidget);
@@ -139,23 +140,27 @@ public:
                 muteButtonWidget->setSelected(mute);
             }));
             muteButtonWidget->setSelected(selectedTrack->mute->getValue());
-
-            
-            
-
         }
         else {
             headerSection->rightTextWidget->set_text("No Track");
         }
 
-
-
-        
-
     }
+
     void onActivated() override {
         signalConnections.push_back( mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1)) );
         onTrackSelected(); // Initialize with no track selected
+        
+        // Input Quantize
+        addConnection(controlSurface->f3Button->onPressed.connect([this]() {
+           mpcSampler->project->inputQuantize.setValue(!mpcSampler->project->inputQuantize.getValue());
+        }));
+
+        addConnection(mpcSampler->project->inputQuantize.onValueChanged.connect([this](bool inputQuantize) {
+            headerSection->inputQuantizeButton->setSelected(inputQuantize);
+            
+        }));
+
 
         auto seq = mpcSampler->project->sequencer->getSelectedSequence();
         signalConnections.push_back(seq->onSongPositionDisplayChanged.connect([this](SongPosition songPosition) {
@@ -176,6 +181,10 @@ public:
         }));
 
 
+        functionWidgets[2]->setLabel("InputQ");
+        functionWidgets[3]->setLabel("Output");
+        functionWidgets[4]->setLabel("Solo");
+        functionWidgets[5]->setLabel("Mute");
     }
 
     

@@ -18,6 +18,11 @@ public:
         render();
     }
 
+    void setSelected(bool selected) {
+        if (selected == _selected) return; // Avoid unnecessary updates
+        _selected = selected;
+        render();
+    }
     string label() const {
         return _label;
     }
@@ -36,14 +41,15 @@ public:
         auto value_extents = cairo_text_extents_t();
         cairo_text_extents(cr, _label.c_str(), &label_extents);
         cairo_text_extents(cr, _value.c_str(), &value_extents);
-        cairo_draw_rectangle(cr, 0, 0, label_extents.width + 2, height, true, true);
+        cairo_draw_rectangle(cr, 0, 0, label_extents.width + 2, height, _selected, true);
         cairo_draw_text(cr, _label, 1, 1 + label_extents.height, _font_size,
-                        false);
+                        !_selected);
         cairo_draw_rectangle(cr, label_extents.width+3, 0, value_extents.width + 6, height, false, true);
         cairo_draw_text(cr, _value, label_extents.width + 4, 2 + value_extents.height, _font_size, true);
     }
 
 protected:
+    bool _selected = false; // Whether the button is selected'
     unsigned int _font_size = 11;
     string _label;
     string _value;

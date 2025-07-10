@@ -97,6 +97,7 @@ public:
     VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
     VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
     VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
+    VRBool inputQuantize = VRBool("inputQuantize", true, undoManager); // Input quantization parameter
     // IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
 
     void serialize() {
@@ -265,6 +266,11 @@ private:
             this->bpm.setValue(static_cast<float>(bpm)); // Update BPM when a new tempo is calculated
             this->play();
         });
+
+        inputQuantize.onValueChanged.connect([this](bool value) {
+            sequencer->setInputQuantize(value); // Set input quantization for the sequencer
+        });
+        inputQuantize.updateObservers(); // Ensure initial value is set
 
         displayPage.updateObservers();
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "audio/choc_MIDI.h"
+#include "core/midi_utils.h"
 #include "sequence.h"
 #include "sigslot/signal.hpp"
 #include "core/playhead.h"
@@ -9,13 +10,14 @@
 using std::shared_ptr;
 using std::make_shared;
 
-class Sequencer {
+class Sequencer : public enable_shared_from_this<Sequencer> {
+    // Sequencer class to manage multiple sequences and their states
 public:
     sigslot::signal<int> onSequenceSelected;
     sigslot::signal<int, ShortMessage &> onMidiOutput; // Signal for MIDI output from the sequencer
     vector<sigslot::connection> sequenceConnections; // Connections for sequence signals
     vector<shared_ptr<Sequence>> sequences; // List of sequences in the sequencer
-
+    
     Sequencer() {
         sequences.reserve(kMaxSequences); // Reserve space for maximum sequences
         _createSequences(); // Create sequences
@@ -24,6 +26,29 @@ public:
     ~Sequencer() = default;
 
     
+    void setInputQuantize(bool enabled) {
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->inputQuantize = enabled; // Set input quantization for each sequence
+            }
+        }
+    }
+
+    void setQuantizationValue(QUANTIZATION_VALUE value) {
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->quantizationValue = value; // Set quantization value for each sequence
+            }
+        }
+    }
+
+    void setQuantizationValue(int value) {
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->quantizationValue = static_cast<QUANTIZATION_VALUE>(value); // Set quantization value for each sequence
+            }
+        }
+    }
 
     void selectSequence(int sequenceIndex) {
         if (sequenceIndex < 0 || sequenceIndex >= static_cast<int>(sequences.size())) {

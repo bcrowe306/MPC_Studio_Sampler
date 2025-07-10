@@ -1,12 +1,7 @@
 * TODO
-    * Fix volume on sample load
-    * Make screen controls activated and deacativated on page change.
-    * Make the SongPosition object the main source of truth for ticking and listeners
-    * Add feedback from sequence and clips to their tracks for pad lighting
     * Implement Input Quantize
     * Figure out undo functionality with recording
     * Try out the ModesComponent so pads can have different modes
-    * implement correct for of DB volume controls
     * display needs feedback about precount, song position selected sequence, etc..
     * fix volume meter to display dB correctly
     * Waveform generation: Implement zooming and windowing

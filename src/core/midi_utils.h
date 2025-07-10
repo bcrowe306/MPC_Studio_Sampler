@@ -4,8 +4,10 @@
 #include <algorithm>
 #include "fmt/format.h"
 #include <string>
+#include <unordered_map>
 
 using std::string;
+using std::unordered_map;
 
 struct TempoChange {
     int tick;   // Tick position of the tempo change
@@ -17,36 +19,46 @@ struct TempoChange {
     int denominator; // Denominator of the time signature (e.g., 4 for 4/4)
   };
   
-  struct SongPosition {
-      int bar;          // Current bar number
-      int beat;         // Current beat number within the bar
-      int sixteenthNote; // Current sixteenth note within the beat
-      int tick;         // Current tick position
-      int lengthInTicks;
+struct SongPosition {
+    int bar;          // Current bar number
+    int beat;         // Current beat number within the bar
+    int sixteenthNote; // Current sixteenth note within the beat
+    int tick = 0;         // Current tick position
+    int lengthInTicks;
 
 
-      float getSongPositionInBeatTime() const {
-          return static_cast<float>(tick) / (float)kTPQN; // Convert tick to beat time
-      }
+    SongPosition& operator++() {
+        ++tick;
+        return *this;
+    }
 
-      float getSongPositionInMs(float bpm, float sampleRate = 48000.0) const {
-          return sampleRate;
-      }
+    SongPosition operator++(int) {
+        SongPosition temp = *this;
+        ++tick;
+        return temp;
+    }
 
-  
-      string getSongPositionDisplay() const {
-          return fmt::format("{:02}.{:02}.{:02}", bar + 1, beat + 1, sixteenthNote + 1);
-      }
+    float getSongPositionInBeatTime() const {
+        return static_cast<float>(tick) / (float)kTPQN; // Convert tick to beat time
+    }
 
-      void updateFromTick(int tick, int timeSignatureNumerator, int timeSignatureDenominator) {
-          this->tick = tick;
-          int ticksPerBar = kTPQN * timeSignatureNumerator;
-          int ticksPerBeat = kTPQN / (timeSignatureDenominator / 4);
-          int ticksPerSixteenth = ticksPerBar / 16;
-          this-> bar = tick / ticksPerBar;
-          this-> beat = (tick % ticksPerBar) / ticksPerBeat;
-          this-> sixteenthNote = (tick % ticksPerBeat) / ticksPerSixteenth;
-      }
+    float getSongPositionInMs(float bpm, float sampleRate = 48000.0) const {
+        return sampleRate;
+    }
+
+
+    string getSongPositionDisplay() const {
+        return fmt::format("{:02}.{:02}.{:02}", bar + 1, beat + 1, sixteenthNote + 1);
+    }
+
+    void updateFromTick(int timeSignatureNumerator, int timeSignatureDenominator) {
+        int ticksPerBar = kTPQN * timeSignatureNumerator;
+        int ticksPerBeat = kTPQN / (timeSignatureDenominator / 4);
+        int ticksPerSixteenth = ticksPerBar / 16;
+        this-> bar = this->tick / ticksPerBar;
+        this-> beat = (this->tick % ticksPerBar) / ticksPerBeat;
+        this-> sixteenthNote = (this->tick % ticksPerBeat) / ticksPerSixteenth;
+    }
   };
   
 
@@ -66,14 +78,45 @@ enum class QUANTIZATION_VALUE{
     BAR_2 = 3840
 };
 
-inline int quantizeTick(int delta, QUANTIZATION_VALUE resolution = QUANTIZATION_VALUE::SIXTEENTH, float strength = 1.0) {
+inline unordered_map<string, QUANTIZATION_VALUE> quantizationValueMap = {
+    {"none", QUANTIZATION_VALUE::NONE},
+    {"1/16", QUANTIZATION_VALUE::SIXTY_FOURTH},
+    {"1/23t", QUANTIZATION_VALUE::THIRTY_SECOND_TRIPLET},
+    {"1/32", QUANTIZATION_VALUE::THIRTY_SECOND},
+    {"1/16", QUANTIZATION_VALUE::SIXTEEN_TRIPLET},
+    {"1/16", QUANTIZATION_VALUE::SIXTEENTH},
+    {"1/8t", QUANTIZATION_VALUE::EIGHTH_TRIPLET},
+    {"1/8", QUANTIZATION_VALUE::EIGHTH},
+    {"1/4t", QUANTIZATION_VALUE::QUARTER_TRIPLET},
+    {"1/4", QUANTIZATION_VALUE::QUARTER},
+    {"1/2", QUANTIZATION_VALUE::HALF},
+    {"bar", QUANTIZATION_VALUE::BAR},
+    {"2 bar", QUANTIZATION_VALUE::BAR_2}
+};
 
-  int grid_tick_size = std::round(kTPQN * static_cast<int>(resolution));
-  int quantized_delta = std::round(static_cast<float>(delta) / grid_tick_size) * grid_tick_size;
-  int note_spread = quantized_delta - delta;
-  int shift_amount = std::round(note_spread * strength);
-  int new_delta = shift_amount + delta;
-  return new_delta;
+inline unordered_map<QUANTIZATION_VALUE, string> quantizationValueToStringMap = {
+    {QUANTIZATION_VALUE::NONE, "none"},
+    {QUANTIZATION_VALUE::SIXTY_FOURTH, "1/64"},
+    {QUANTIZATION_VALUE::THIRTY_SECOND_TRIPLET, "1/32t"},
+    {QUANTIZATION_VALUE::THIRTY_SECOND, "1/32"},
+    {QUANTIZATION_VALUE::SIXTEEN_TRIPLET, "1/16t"},
+    {QUANTIZATION_VALUE::SIXTEENTH, "1/16"},
+    {QUANTIZATION_VALUE::EIGHTH_TRIPLET, "1/8t"},
+    {QUANTIZATION_VALUE::EIGHTH, "1/8"},
+    {QUANTIZATION_VALUE::QUARTER_TRIPLET, "1/4t"},
+    {QUANTIZATION_VALUE::QUARTER, "1/4"},
+    {QUANTIZATION_VALUE::HALF, "1/2"},
+    {QUANTIZATION_VALUE::BAR, "bar"},
+    {QUANTIZATION_VALUE::BAR_2, "2 bar"}
+};
+
+inline int quantizeTick(int delta, QUANTIZATION_VALUE gridTickSize = QUANTIZATION_VALUE::SIXTEENTH, float strength = 1.0) {
+    auto grid_tick_size = static_cast<int>(gridTickSize);
+    int quantized_delta = std::round(static_cast<float>(delta) / grid_tick_size) * grid_tick_size;
+    int note_spread = quantized_delta - delta;
+    int shift_amount = std::round(note_spread * strength);
+    int new_delta = shift_amount + delta;
+    return new_delta;
 }
 
 // Convert ticks to beat time

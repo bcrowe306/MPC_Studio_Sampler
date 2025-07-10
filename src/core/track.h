@@ -70,18 +70,13 @@ public:
     }
 
     void setMute(bool mute) {
-        muteNode->gain()->setValue(mute ? 0.0f : 1.0f);
+        auto gainValue = mute ? 0.0f : 1.0f; // Set gain to 0 if muted, otherwise 1
+        std::cout << "Setting mute to " << (mute ? "true" : "false") << ": " << gainValue << std::endl; // Debug output
+        muteNode->gain()->setValue(gainValue);
     }
 
     void setSolo(bool solo) {
-        // Solo logic: if solo is true, mute all other tracks
-        if (solo) {
-            // Mute all other tracks (not implemented here, would require access to all tracks)
-            // This is a placeholder for the actual implementation
-            setMute(false); // Unmute this track
-        } else {
-            setMute(true); // Mute this track if solo is turned off
-        }
+        
     }
     
     void setSamplerDevice(shared_ptr<SamplerDevice> device) {
@@ -158,7 +153,7 @@ class Track {
             trackNode->setSolo(value);
         });
 
-        trackNode->setVolume(volumeDb->getValue()); // Set initial volume
+        trackNode->setVolumeDb(volumeDb->getValue()); // Set initial volume
         trackNode->setPan(pan->getValue());       // Set initial pan
         trackNode->setMute(mute->getValue());     // Set initial mute state
         trackNode->setSolo(solo->getValue());     // Set initial solo state
@@ -185,7 +180,6 @@ class Track {
         trackNode->midiInput(msg);
     }
     void midiInput(choc::midi::ShortMessage &msg) {
-        std::cout << "Track " << _trackIndex << " received MIDI input: " << msg.toHexString() << std::endl;
         trackNode->midiInput(msg); // Forward MIDI input to the track node
         midiOutput(_trackIndex, msg); // Emit MIDI output signal for the track to whoever is listening, ie sequencer
     }
