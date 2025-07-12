@@ -265,3 +265,41 @@ inline static void cairo_draw_vertical_scrollbar(cairo_t *cr, double x, double y
     cairo_rectangle(cr, x + width - 2, y, 1, height);
     cairo_stroke(cr);
 }
+
+inline static void cairo_draw_metronome_icon(cairo_t *cr, double x, double y, double width, double height, bool selected = false, bool color = true) {
+    cairo_set_color(cr, color);
+
+    // Draw metronome body
+    if(selected){
+        cairo_rectangle(cr, x, y, width, height);
+        cairo_fill(cr);
+    }
+    else {
+        cairo_rectangle(cr, x, y, width-1, height);
+        cairo_stroke(cr);
+    }
+    
+
+    // draw two inner circles evenly spaced inside the rectangle
+    double innerRadius = height * 0.20;
+    double innerY = y + height * 0.5;
+    double innerX1 = x + width * 0.47;
+    double innerX2 = x + width * 0.71;
+    cairo_set_color(cr, !selected); // Invert color for inner circles
+    cairo_arc(cr, innerX1, innerY, innerRadius, 0, 2 * M_PI);
+    cairo_fill(cr);
+    cairo_arc(cr, innerX2, innerY, innerRadius, 0, 2 * M_PI);
+    cairo_fill(cr);
+}
+
+
+inline static void cairo_draw_horizontal_progress_bar(cairo_t *cr, double x, double y, double width, double height, float progress, bool color = true) {
+    cairo_set_color(cr, color);
+    cairo_rectangle(cr, x, y, width, height);
+    cairo_stroke(cr);
+
+    // Draw filled part based on progress
+    progress = std::clamp(progress, 0.0f, 1.0f); // Ensure progress is between 0 and 1
+    cairo_rectangle(cr, x, y, width * progress, height);
+    cairo_fill(cr);
+}

@@ -1,20 +1,40 @@
 * TODO
-    * Figure out undo functionality with recording
+    * Application
+        * Time to make some progress on serialization
+            * Yaml has been chosen
+            * Each object needs to have a serialize and deserialize method
+        * Need to auto save on time interval and on certain events like sample load, and sequence record.
+    * Sequencing improvements
+        * Build out page.. Need prototype in figma
+        * change sequence length
+        * Have sequence auto batch commands on each loop cycle
+        * Implement Overdub record moe. Currently overdub is the default, but needs to be toggled on and off.
+    * UI and page Routing
+        * By default, the Data wheel, qlinks, qlink scroll, directional pad, plus and minus buttons follow the screens page.
+        * Finally implemented an actual router with push and pop functionality
+        * Now we can have dialog screens as well as setting pages/ sub menus
+        * Implement dialog screens
+            * Noterepeat settings
+            * Input quantize settings
+            * LanchQuantize settings
+            * Metronome Settings
+
     * Try out the ModesComponent so pads can have different modes
-    * display needs feedback about precount, song position selected sequence, etc..
-    * Waveform generation: Implement zooming and windowing
-    * File Loading: Think about loading files on another thread to not block ui thread
-    * Threading:  need to think about thread pools to accomplish tasks that can't block.
-    * Look into routing system for more complex UI options
+    * Waveform generation: 
+        * Implement zooming and windowing and possible different waveform view, currently a symetrical view is implemented
+    * File Loading: 
+        * Currently Midi System hangs on large file loads. this is because the file load is launched from the Midi thread... Not ideal
+        * Think about loading files on another thread to not block ui thread
+    * Threading:  
+        * Need to think about thread pools to accomplish tasks that can't block.
     * Finish building pages
-        * Device Page
         * Sequence Page
         * Mixer Page
         * Browser Page
         * Settings Page
         * Perform Page
     * Finish Building basic widgets 
-        * HScrollbar Widget
+        * Grid Widget
         * Radiobox Widget
         * VSlider Widget
         * HSlider Widget
@@ -26,8 +46,8 @@
         * Audio Recording? Can we do it with Labsound? If not, a new engine needs to be programmed... SMH !!
         * Will need device selection if we want to record. You will want to select the device you are recording from.
     * ControlSurface
+        * Implement more control events, like click, double click, long press, hold, etc
         * Build Components
-            * Session Component: Each pad selects and plays a track
             * Notes/Performance Component: Pads are split across keyboard, or sliced sample. This is where chords, scaled, and progressions are playable
             * Mixer Component: Pads help to perform mixing
             * Transport Component
@@ -38,7 +58,7 @@
     * Build modes to bring in and out active components
 
 * Future:
-    * Timing - Midi tempo BPM, make sure timing is correct
+    * Timing - Midi tempo BPM, make sure timing is correct --- Getting close here
     * Arranger - Future feature
     * Devices - Figure out how I want to program devices. Leaning toward cmajor if possible
         * Sampler Device
@@ -52,4 +72,4 @@
         * EQ
         * Filter
         * Saturation
-        * Limiter
+        * Limiter0

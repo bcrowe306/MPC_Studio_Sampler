@@ -18,7 +18,7 @@ static void applicationLoop(std::atomic<bool> &running, shared_ptr<MPCSampler> m
         if (mpc_sampler->project->undoManager->hasFlushableCommands.load(std::memory_order_acquire)) {
             mpc_sampler->project->undoManager->flushToUndoStack();
         }
-        display->onFrame(); // Call the display's onFrame method to update the UI
+        display->router->onFrame(); // Call the display's onFrame method to update the UI
         std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
 }

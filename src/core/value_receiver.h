@@ -1,6 +1,7 @@
 #pragma once
 #include "core/command.h"
 #include <algorithm>
+#include <atomic>
 #include <concepts>
 #include <cstddef>
 #include <string>
@@ -27,11 +28,10 @@ public:
 
       if (undoManager_) {
         // Create a command to undo the change
-        auto command = std::make_shared<Command>(
-            this->shared_from_this(), UUIDToString(_id), _value, newValue);
+        auto command = std::make_shared<Command>( this->shared_from_this(), UUIDToString(_id), _value, newValue);
         undoManager_->executeCommand(command);
       } else {
-        doAction(newValue);
+        doAction(newValue, false); // Execute the action directly if no undo manager is present
       }
     }
   }
@@ -61,7 +61,7 @@ public:
    
   }
 
-  void doAction(any value) override {
+  void doAction(any value, bool undo) override {
     // cast to T and set the value
     if (value.type() == typeid(T)) {
       _value = any_cast<T>(value);
@@ -127,9 +127,9 @@ class ValueReceiver<bool> : public IReceiver,
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<bool> onValueChanged;
-  ValueReceiver(string name, bool initialValue,
-                shared_ptr<UndoManager> undoManager = nullptr)
-      : _value(initialValue), undoManager_(undoManager) {
+  ValueReceiver(string name, bool initialValue, shared_ptr<UndoManager> undoManager = nullptr) : undoManager_(undoManager) 
+  {
+    _value.store(initialValue, memory_order_relaxed); // Use atomic for thread safety
     _name = name;
   }
 
@@ -145,10 +145,10 @@ public:
       if (undoManager_) {
         // Create a command to undo the change
         auto command = std::make_shared<Command>(
-            this->shared_from_this(), UUIDToString(_id), _value, newValue);
+            this->shared_from_this(), UUIDToString(_id), _value.load(memory_order_relaxed), newValue);
         undoManager_->executeCommand(command);
       } else {
-        doAction(newValue);
+        doAction(newValue, false);
       }
     }
   }
@@ -159,25 +159,25 @@ public:
     return *this; // Return the current instance
   }
 
-  bool getValue() const { return any_cast<bool>(_value); }
+  bool getValue() const { return any_cast<bool>(_value.load(memory_order_relaxed)); }
 
   void incrementValue(bool isCoarse) {
     // For boolean values, incrementing or decrementing doesn't make sense,
     // but we can toggle the value instead.
-    setValue(!_value);
+    setValue(!_value.load(memory_order_relaxed));
   }
 
   void decrementValue(bool isCoarse) {
     // For boolean values, decrementing or incrementing doesn't make sense,
     // but we can toggle the value instead.
-    setValue(!_value);
+    setValue(!_value.load(memory_order_relaxed));
   }
 
-  void doAction(any value) override {
+  void doAction(any value, bool undo) override {
     // cast to T and set the value
     if (value.type() == typeid(bool)) {
-      _value = any_cast<bool>(value);
-      onValueChanged(_value);
+      _value.store(any_cast<bool>(value));
+      onValueChanged(_value.load(memory_order_relaxed));
     } else {
       throw std::runtime_error("Invalid type for ValueReceiver");
     }
@@ -192,18 +192,18 @@ public:
     out << YAML::Value << UUIDToString(this->_id);
 
     out << YAML::Key << "value";
-    out << YAML::Value << this->_value;
+    out << YAML::Value << this->_value.load(memory_order_relaxed);
   };
 
   virtual void deserialize(YAML::Node &yaml) {
     if (yaml.IsScalar()) {
-      _value = yaml.as<bool>();
-      onValueChanged(_value);
+      _value.store(yaml.as<bool>(), memory_order_relaxed);
+      onValueChanged(_value.load(memory_order_relaxed));
 
     } else if (yaml.IsMap()) {
       if (yaml["value"]) {
-        _value = yaml["value"].as<bool>();
-        onValueChanged(_value);
+        _value.store(yaml["value"].as<bool>(), memory_order_relaxed);
+        onValueChanged(_value.load(memory_order_relaxed));
       }
       if (yaml["id"]) {
         auto idStr = yaml["id"].as<string>();
@@ -225,7 +225,7 @@ public:
 protected:
   uuids::uuid _id = generateUUID();
   string _name = "";
-  bool _value;
+  atomic<bool> _value;
   shared_ptr<UndoManager> undoManager_;
 };
 
@@ -266,7 +266,7 @@ public:
             this->shared_from_this(), UUIDToString(_id), _value, newValue);
         undoManager_->executeCommand(command);
       } else {
-        doAction(newValue);
+        doAction(newValue, false);
       }
     }
   }
@@ -279,7 +279,7 @@ public:
 
   T getValue() const { return any_cast<T>(_value); }
 
-  void doAction(any value) override {
+  void doAction(any value, bool undo) override {
     // cast to T and set the value
     if (value.type() == typeid(T)) {
       _value = any_cast<T>(value);
@@ -411,7 +411,7 @@ public:
             this->shared_from_this(), UUIDToString(_id), _value, newValue);
         undoManager_->executeCommand(command);
       } else {
-        doAction(newValue);
+        doAction(newValue, false);
       }
     }
   }
@@ -465,7 +465,7 @@ public:
     onValueChanged(_value);
   }
 
-  void doAction(any value) override {
+  void doAction(any value, bool undo) override {
     // cast to T and set the value
     if (value.type() == typeid(T)) {
       _value = any_cast<T>(value);
@@ -551,7 +551,14 @@ protected:
   shared_ptr<UndoManager> undoManager_;
 };
 
+class VRFloatDB : public ValueReceiver<float> {
+public:
+  VRFloatDB(string name, float initialValue, shared_ptr<UndoManager> undoManager = nullptr)
+      : ValueReceiver<float>(name, initialValue, -60.0f, 12.0f, 1.0f, 0.1f, undoManager) {}
+};
+
 typedef ValueReceiver<std::string> VRString;
 typedef ValueReceiver<bool> VRBool;
 typedef ValueReceiver<float> VRFloat;
 typedef ValueReceiver<int> VRInt;
+

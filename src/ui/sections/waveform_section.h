@@ -12,14 +12,14 @@ public:
         : Widget(x, y, width, height), _title(title) {
         render();
     }
-
+    
     void draw(Vector offset) override {
         cairo_draw_rectangle(cr, 0, 0, width, height, false, true);
         if (_waveformData && !_waveformData->empty()) {
             size_t numSamples = _waveformData->size();
             float xStep = static_cast<float>(width) / numSamples;
             float centerY = height / 2.0f;
-            float halfHeight = height / 2.0f;
+            float halfHeight = (height - 8) / 2.0f;
 
             for (size_t i = 0; i < numSamples; ++i) {
                 float value = (*_waveformData)[i];

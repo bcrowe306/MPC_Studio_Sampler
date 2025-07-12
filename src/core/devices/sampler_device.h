@@ -14,8 +14,8 @@ class SamplerDevice : public DeviceBase {
 public:
     uuids::uuid id = generateUUID(); // Unique identifier for the sampler device
     vector<float> _waveformData;
-    VRFloat gain = VRFloat("Gain", .6f, 0.0f, 2.0f, 0.01f, 0.001f); // Gain parameter for the sampler device
-    
+    VRFloat gainDB = VRFloat("Gain", 0.0f, -60.0f, 12.0f, 1.0f, 0.1f); // Gain parameter for the sampler device
+
     SamplerDevice(std::shared_ptr<lab::AudioContext> &audioContext)
         : DeviceBase(audioContext)
     {
@@ -38,10 +38,11 @@ public:
     }
 
     void connectParams (){
-        gain.onValueChanged.connect([this](float value) {
-            _gainNode->gain()->setValue(value); // Update the gain node with the new value
+        gainDB.onValueChanged.connect([this](float value) {
+
+            _gainNode->gain()->setValue(dBToLinear(value)); // Update the gain node with the new value
         });
-        _gainNode->gain()->setValue(gain.getValue()); // Set initial gain value
+        _gainNode->gain()->setValue(dBToLinear(gainDB.getValue())); // Set initial gain value
     }
 
     void generateWaveformData(){

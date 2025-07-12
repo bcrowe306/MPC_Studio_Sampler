@@ -11,3 +11,4 @@
 #include "ui/sections/header_section.h"
 #include "ui/sections/waveform_section.h"
 #include "ui/sections/titlebar_section.h"
+#include "progress_bar_widget.h"

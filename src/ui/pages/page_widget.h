@@ -9,18 +9,18 @@
 
 using std::shared_ptr;
 
+// Forward declaration of Router class
+class Router;
 
 class PageWidget : public Widget {
 public:
     std::string _title;
     shared_ptr<MPCSampler> mpcSampler;
+    shared_ptr<Router> router;
     std::vector<sigslot::connection> signalConnections;
     shared_ptr<MPCStudioBlackControlSurface> controlSurface;
     sigslot::signal<> deactivatedSignal; // Signal emitted when the page is deactivated
-    PageWidget(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height) : Widget(x, y, width, height), mpcSampler(mpcSampler)
-    {
-
-    }
+    PageWidget(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height);
     virtual ~PageWidget() = default;
 
     // Is called at every frame update per the frame rate of the application
@@ -28,17 +28,7 @@ public:
     virtual void onFrame() {
     }
 
-    void addConnection(const sigslot::connection &connection) {
-        // Add a signal connection to the page
-        signalConnections.push_back(connection);
-    }
+    void addConnection(const sigslot::connection &connection);
 
-    void onDeactivated() override {
-        // Deactivate all signal connections when the page is deactivated
-        for (auto &connection : signalConnections) {
-            connection.disconnect();
-        }
-        signalConnections.clear();
-        deactivatedSignal(); // Emit the deactivated signal
-    }
+    void onDeactivated() override ;
 };

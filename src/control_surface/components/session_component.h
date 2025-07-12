@@ -23,8 +23,9 @@ public:
     void onActivateComponent() override {
         std::cout << "SessionComponent activated.\n";
         
+        // Full Level Button
         addConnection(controlSurface->fullLevelButton->onPressed.connect([this]() {
-            controlSurface->mpcSampler->fullLevel->toggleEnabled();
+                controlSurface->mpcSampler->fullLevel->toggleEnabled();
         }));
         
         addConnection(mpcSampler->fullLevel->enabled.onValueChanged.connect([this](bool enabled) {
@@ -35,6 +36,7 @@ public:
             }
         }));
 
+        // Sequence Selection Plus and Minus Buttons
         addConnection(controlSurface->plusButton->onPressed.connect([this]() {
             mpcSampler->project->sequencer->nextSequence(); // Select the next sequence
         }));
@@ -43,15 +45,18 @@ public:
             mpcSampler->project->sequencer->previousSequence(); // Select the previous sequence
         }));
 
+        // Note Repeat Button
         addConnection(controlSurface->noteRepeatButton->onPressed.connect([this]() {
             controlSurface->mpcSampler->noteRepeat->toggleEnabled();
         }));
 
-        addConnection(mpcSampler->noteRepeat->enabled.onValueChanged.connect([this](bool enabled) {
-            if(enabled) {
-                controlSurface->noteRepeatButton->sendColor(OneColorButtonControl::Colors::ON); // Set button color to yellow when enabled
-            } else {
-                controlSurface->noteRepeatButton->sendColor(OneColorButtonControl::Colors::OFF); // Set button color to off when disabled
+        addConnection(controlSurface->qlinkScrollEncoder->onOffset.connect([this](int offset) {
+            if(controlSurface->shiftButton->isPressed){
+                if (offset > 0) {
+                    mpcSampler->project->bpm.incrementValue(true); // Increment BPM by coarse value
+                } else if (offset < 0) {
+                    mpcSampler->project->bpm.decrementValue(true); // Decrement BPM by coarse value
+                }
             }
         }));
 

@@ -35,8 +35,8 @@ public:
     shared_ptr<PlainButtonControl> rightButton = make_shared<PlainButtonControl>(RIGHT, "Right Button");
     shared_ptr<PlainButtonControl> upButton = make_shared<PlainButtonControl>(UP, "Up Button");
     shared_ptr<PlainButtonControl> downButton = make_shared<PlainButtonControl>(DOWN, "Down Button");
-    shared_ptr<OneColorButtonControl> undoButton = make_shared<OneColorButtonControl>(UNDO, "Undo Button");
-    shared_ptr<OneColorButtonControl> shiftButton = make_shared<OneColorButtonControl>(SHIFT, "Shift Button");
+    shared_ptr<TwoColorButtonControl> undoButton = make_shared<TwoColorButtonControl>(UNDO, "Undo Button");
+    shared_ptr<PlainButtonControl> shiftButton = make_shared<PlainButtonControl>(SHIFT, "Shift Button");
     shared_ptr<PlainButtonControl> minusButton = make_shared<PlainButtonControl>(MINUS, "Minus Button");
     shared_ptr<PlainButtonControl> plusButton = make_shared<PlainButtonControl>(PLUS, "Plus Button");
     shared_ptr<OneColorButtonControl> windowButton = make_shared<OneColorButtonControl>(WINDOW, "Window Button");

@@ -2,6 +2,7 @@
 #include "audio/choc_MIDI.h"
 #include "core/midi_utils.h"
 #include "sequence.h"
+#include "core/command.h"
 #include "sigslot/signal.hpp"
 #include "core/playhead.h"
 #include <iostream>
@@ -16,11 +17,12 @@ class Sequencer : public enable_shared_from_this<Sequencer> {
     // Sequencer class to manage multiple sequences and their states
 public:
     sigslot::signal<int> onSequenceSelected;
+    shared_ptr<UndoManager> undoManager; // Undo manager for handling commands
     sigslot::signal<int, ShortMessage &> onMidiOutput; // Signal for MIDI output from the sequencer
     vector<sigslot::connection> sequenceConnections; // Connections for sequence signals
     vector<shared_ptr<Sequence>> sequences; // List of sequences in the sequencer
     
-    Sequencer() {
+    Sequencer(shared_ptr<UndoManager> undoManager) : undoManager(undoManager) {
         sequences.reserve(kMaxSequences); // Reserve space for maximum sequences
         _createSequences(); // Create sequences
         selectSequence(0); // Select the first sequence by default
@@ -186,7 +188,7 @@ protected:
     
     void _createSequences(){
         for(int i = 0; i < kMaxSequences; i++) {
-             auto seq = make_shared<Sequence>(i);
+             auto seq = make_shared<Sequence>(undoManager, i);
              sequenceConnections.push_back(seq->midiOut.connect([this](int trackIndex, ShortMessage &msg) {
                  midiOutFromSequences(trackIndex, msg); // Connect sequence MIDI output to the sequencer
              }));

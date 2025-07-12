@@ -46,11 +46,11 @@ public:
 
         masterTrack = std::make_shared<TrackNode>(audioContext);
         cueTrack = std::make_shared<TrackNode>(audioContext);
-        metronomeNode = std::make_shared<MetronomeNode>(audioContext);
         playhead = std::make_shared<Playhead>(timer); // Initialize the playhead with the audio context and MIDI clock
+        metronomeNode = std::make_shared<MetronomeNode>(audioContext, playhead);
         undoManager = std::make_shared<UndoManager>(audioContext); // Initialize the undo manager
         tapTempoNode = std::make_shared<TapTempoNode>(audioContext); // Initialize the tap tempo node
-        sequencer = std::make_shared<Sequencer>(); // Initialize the sequencer
+        sequencer = std::make_shared<Sequencer>(undoManager); // Initialize the sequencer
 
         playhead->onMetronomeTick.connect(std::bind(&MetronomeNode::onMetronomeTick, metronomeNode.get(), std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         _connectSequencer(); // Connect the sequencer to the playhead
@@ -150,7 +150,12 @@ public:
     }
 
     void play() {
+        
         playhead->start(); // Start the playhead
+        // End the current batch if recording is stopped
+        if (undoManager->isBatching()) {
+            undoManager->endBatch();
+        }
         onIsPlaying(isPlaying()); // Emit signal that playback has started
     }
 
@@ -159,24 +164,45 @@ public:
     }
 
     void stop() {
+        if(playhead->isRecording()) {
+            
+            // End the current batch if recording is stopped
+            if(undoManager->isBatching()){
+                undoManager->endBatch(); 
+            }
+        }
         playhead->stop(); // Stop the playhead
         onIsPlaying(false); // Emit signal that playback has stopped
     }
 
-    void record() {
-        playhead->record(); // Start recording
-    }
-
     void toggleRecord() {
+
         playhead->toggleRecording(); // Toggle recording state
+        if (playhead->isRecording()) {
+            undoManager->startBatch(); 
+            onIsRecording(true); 
+        } 
+        else {
+            // End the current batch if recording is stopped
+            if (undoManager->isBatching()) {
+                undoManager->endBatch();
+            }
+            onIsRecording(false);
+        }
     }
 
     void togglePlay() {
-        playhead->togglePlaying(); // Toggle play/pause state
+
+        playhead->togglePlaying(); 
         if (playhead->isPlaying()) {
-            onIsPlaying(true); // Emit signal that playback has started
-        } else {
-            onIsPlaying(false); // Emit signal that playback has stopped
+            onIsPlaying(true); 
+        } 
+        else {
+            // End the current batch if recording is stopped
+            if (undoManager->isBatching()) {
+                undoManager->endBatch();
+            }
+            onIsPlaying(false);
         }
     }
 

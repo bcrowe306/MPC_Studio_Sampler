@@ -27,14 +27,13 @@ public:
     virtual ~IReceiver() = default;
 
     // Execute the command with the given value
-    virtual void doAction(any value) = 0;
+    virtual void doAction(any value, bool undo=false) = 0;
 };
 
 
 class Command {
 public:
-    Command(shared_ptr<IReceiver> receiver_, string id, any currentValue,
-            any newValue)
+    Command(shared_ptr<IReceiver> receiver_, string id, any currentValue, any newValue)
         : receiver_(receiver_), _id(id), currentValue_(currentValue), newValue_(newValue) {
     }
     virtual ~Command() = default;
@@ -53,10 +52,10 @@ public:
     any getNewValue() const {
         return newValue_;
     }
-  virtual void execute() { receiver_->doAction(newValue_); };
-  virtual void undo() { receiver_-> doAction(currentValue_); };
+  virtual void execute() { receiver_->doAction(newValue_, false); };
+  virtual void undo() { receiver_-> doAction(currentValue_, true); };
 
-private:
+protected:
     string _id;
     shared_ptr<IReceiver> receiver_;
     any currentValue_;
@@ -94,6 +93,7 @@ private:
     vector<shared_ptr<Command>> _commands;
 };
 
+// TODO: Have debounce run in thread and not based on timing from audio callback
 class UndoManager {
 public:
     std::atomic<bool> hasFlushableCommands = false;
@@ -116,7 +116,7 @@ public:
     ~UndoManager() = default;
 
     
-    void executeCommand(shared_ptr<Command> command) {
+    void executeCommand(shared_ptr<Command> command, bool debounceCommand=true) {
         command->execute();
 
         // If batching is enabled, add to current batch
@@ -125,20 +125,27 @@ public:
             return;
         }
 
-        // Add the command to the pending undo commands (normal behavior)
-        auto &entry = _pendingUndoCommands[command->getId()];
-        if(entry.command && entry.command->getId() == command->getId()) {
-            // If the command already exists, just update it
-            entry.command->setNewValue(command->getNewValue());
-            entry.samplesSinceLastCommand = 0.0f;
-            entry.readyToFlush = false;
-            return;
-        }else{
-            // If the command is new, create a new entry
-            entry.command = command;
-            entry.readyToFlush = false;
-            entry.samplesSinceLastCommand = 0.0f;
+        if(debounceCommand){
+            // Add the command to the pending undo commands (normal behavior)
+            auto &entry = _pendingUndoCommands[command->getId()];
+
+            if (entry.command && entry.command->getId() == command->getId()) {
+              // If the command already exists, just update it
+              entry.command->setNewValue(command->getNewValue());
+              entry.samplesSinceLastCommand = 0.0f;
+              entry.readyToFlush = false;
+              return;
+            } else {
+              // If the command is new, create a new entry
+              entry.command = command;
+              entry.readyToFlush = false;
+              entry.samplesSinceLastCommand = 0.0f;
+            }
         }
+        else{
+            _undoStack.push_back(command);
+        }
+        
         
         
     }
@@ -166,7 +173,8 @@ public:
             command->execute();
             _undoStack.push_back(command);
             _redoStack.pop_back();
-        } else if (!_batchRedoStack.empty()) {
+        } 
+        else if (!_batchRedoStack.empty()) {
             auto batch = _batchRedoStack.back();
             batch->redo();
             _batchUndoStack.push_back(batch);

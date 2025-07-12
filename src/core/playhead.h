@@ -5,7 +5,6 @@
 #include <memory>
 
 using std::shared_ptr;
-using std::make_shared;
 
 class Playhead{
     public:
@@ -173,6 +172,10 @@ class Playhead{
 
         void stoppedState(){
             _precountTicks = 0; // Reset precount ticks
+        }
+
+        PlayheadState getState() const {
+            return _state; // Return the current playhead state
         }
 
         void recordingState(){

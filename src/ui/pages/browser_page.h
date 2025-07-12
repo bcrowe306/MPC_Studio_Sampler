@@ -44,11 +44,7 @@ public:
     void onActivated() override {
         // Connect signals and set up the page when activated
         signalConnections.push_back(controlSurface->jogWheel->onOffset.connect([this](int offset) {
-            if(controlSurface->shiftButton->isPressed) {
-                mpcSampler->browser->page(offset);
-            } else {
-                mpcSampler->browser->scroll(offset);
-            }
+            mpcSampler->browser->scroll(offset);
         }));
         signalConnections.push_back(controlSurface->upButton->onPressed.connect([this]() {
             mpcSampler->browser->scroll(-1);

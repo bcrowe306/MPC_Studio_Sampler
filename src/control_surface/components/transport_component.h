@@ -41,10 +41,19 @@ public:
          controlConnections.push_back(mpcSampler->project->playhead->onPlayheadStateChanged.connect([this](Playhead::PlayheadState state) {
               updateLeds(); // Update the LEDs when playhead state changes
          }));
+         addConnection(controlSurface->undoButton->onPressed.connect([this]() {
+               if(controlSurface->shiftButton->isPressed) {
+                   mpcSampler->project->undoManager->redo();
+               } else {
+                   mpcSampler->project->undoManager->undo();
+               }
+         }));
          updateLeds(); // Update the LEDs based on the current state
     }
 
     void updateLeds(){
+     
+
         auto &cs = controlSurface;
         // Play button LED
         controlSurface->tapTempoButton->sendColor(OneColorButtonControl::Colors::ON);
@@ -56,11 +65,15 @@ public:
             cs->playButton->sendColor(OneColorButtonControl::Colors::OFF);
         }
 
+        // Record button LED
         if(mpcSampler->project->playhead->isRecording()) {
             cs->recordButton->sendColor(OneColorButtonControl::Colors::ON); // Set record button to ON color
         } else {
             cs->recordButton->sendColor(OneColorButtonControl::Colors::OFF); // Set record button to OFF color
         }
+
+        // Undo button LED
+        controlSurface->undoButton->sendColor(TwoColorButtonControl::Colors::COLOR1);
     }
 
     void onDeactivateComponent() override {

@@ -15,6 +15,7 @@ public:
         PitchBend,
     };
     int id;
+    int trackIndex = -1; // Track index for the event, -1 if not applicable
     bool enabled = true; // Whether the event is enabled
     EventType type;
     int startTick;
@@ -25,8 +26,8 @@ public:
     ShortMessage startEvent;
     ShortMessage endEvent; // For NoteOff events  
 
-    MidiEvent(int startTick, ShortMessage startEvent)
-        : startTick(startTick), startEvent(startEvent), endEvent(startEvent) {
+    MidiEvent(int id, int startTick, ShortMessage startEvent)
+        : id(id), startTick(startTick), startEvent(startEvent), endEvent(startEvent) {
         _determineEventType();
         
         if (startEvent.isController()) {
@@ -48,8 +49,8 @@ public:
         }
     }
 
-    MidiEvent(int startTick, int endTick, ShortMessage startEvent, ShortMessage endEvent)
-        : startTick(startTick), startEvent(startEvent), endEvent(endEvent) {
+    MidiEvent(int id, int startTick, int endTick, ShortMessage startEvent, ShortMessage endEvent)
+        : id(id), startTick(startTick), startEvent(startEvent), endEvent(endEvent) {
         _determineEventType();
         if (startEvent.isNoteOn()) {
             duration = endTick - startTick; // Calculate duration for NoteOn events

@@ -71,7 +71,7 @@ public:
         double bpm = 60 / (averageInterval / _sampleRate); // Convert to BPM
         // Here you can use the calculated BPM value as needed
         bpm = std::round(bpm); // Round to nearest whole number
-        if(_tapCount >= 4) {
+        if(_tapCount >= 3) {
             onTempoCalculated(bpm); // Emit signal with the calculated BPM
         }
 

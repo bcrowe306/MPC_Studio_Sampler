@@ -55,11 +55,6 @@ public:
     }
 
 
-    void setVolume(float volume) {
-        
-        volumeNode->gain()->setValue(volume);
-    }
-
     void setVolumeDb(float volumeDb) {
         volumeDb = std::clamp(volumeDb, -60.0f, 6.0f); // Clamp volume to a range of -60 dB to 6 dB
         volumeNode->gain()->setValue(dBToLinear(volumeDb));
@@ -235,6 +230,13 @@ class Track {
 
     shared_ptr<AudioNode> getOutput() {
         return trackNode->output; // Return the output node of the track
+    }
+
+    string getDeviceTypeName(){
+        if (trackNode->samplerDevice) {
+            return "Sampler";
+        }
+        return "Empty";
     }
 
     void setTrackIndex(int index) {
