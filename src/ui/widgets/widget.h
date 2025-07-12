@@ -65,6 +65,7 @@ public:
     void initialize(EncodeSurfaceCallback encode_surface_callback); 
     void activate();
     void deactivate();
+    virtual void onPreActivated(){};
     virtual void onActivated(){};
     virtual void onDeactivated(){};
     void clear();

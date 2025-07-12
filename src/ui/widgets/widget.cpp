@@ -78,6 +78,7 @@ void Widget::activate() {
             child->activate();
         }
     }
+    onPreActivated(); // Call the pre-activation callback
     onActivated(); // Call the activation callback
 }
 

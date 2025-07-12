@@ -19,10 +19,10 @@ DevicePage::DevicePage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsign
             connection.disconnect();
         }
         trackConnections.clear();
-        for(auto &connection : seqConnections) {
+        for(auto &connection : sequenceConnections) {
             connection.disconnect();
         }
-        seqConnections.clear();
+        sequenceConnections.clear();
     });
 }
 
@@ -31,13 +31,6 @@ DevicePage::~DevicePage() {
 }
 
 void DevicePage::createWidgets(){
-    for (int i = 0; i < 6; i++) {
-      auto functionWidget = make_shared<FunctionWidget>(
-          i * 60, 96 - 11, 60, 13, fmt::format("F{}", i + 1), false,
-          "center");
-      functionWidgets.push_back(functionWidget);
-      this->add_child(functionWidget);
-    }
     
 
     for (int i = 0; i < 4; i++) {
@@ -47,8 +40,7 @@ void DevicePage::createWidgets(){
       this->add_child(parameterWidget);
       parameterWidgets.push_back(parameterWidget);
     }
-    outputWidget = make_shared<ButtonWidget>(60 * 5 + 4, 68, 54, 13,
-                                                  "Main", false, 11);
+    outputWidget = make_shared<ButtonWidget>(60 * 5 + 4, 68, 54, 13,  "Main", false, 11);
     meterWidget = make_shared<MeterWidget>(333, 13, 27, 39, .5, 0.9f, 0.7f);
     soloButtonWidget = make_shared<ButtonWidget>(303, 40, 15, 14, "s", false, 10);
     muteButtonWidget = make_shared<ButtonWidget>(317, 40, 15, 14, "m", false, 10);
@@ -82,11 +74,12 @@ void DevicePage::onFrame() {
     }
 }
 
-void DevicePage::onSeqSelected(){
-    for(auto &connection : seqConnections) {
+void DevicePage::onSequenceSelected(int sequenceIndex) {
+    for(auto &connection : sequenceConnections) {
         connection.disconnect();
     }
-    seqConnections.clear();
+    sequenceConnections.clear();
+    headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
 }
 
 void DevicePage::onTrackSelected(int trackIndex) {
@@ -156,25 +149,15 @@ void DevicePage::onTrackSelected(int trackIndex) {
 }
 
 void DevicePage::onActivated() {
+    functionWidgets[2]->setLabel("InputQ");
+    functionWidgets[3]->setLabel("Output");
+    functionWidgets[4]->setLabel("Solo");
+    functionWidgets[5]->setLabel("Mute");
 
     addConnection(mpcSampler->project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
         headerSection->setMetronomeEnabled(enabled);
     }));
     headerSection->setMetronomeEnabled(mpcSampler->project->metronomeEnabled.getValue());
-
-    addConnection( mpcSampler->project->onTrackSelected.connect(std::bind(&DevicePage::onTrackSelected, this, std::placeholders::_1)) );
-    onTrackSelected(); // Initialize with no track selected
-
-    addConnection(mpcSampler->project->sequencer->onSequenceSelected.connect([this](int index) {
-        onSeqSelected();
-    }));
-    onSeqSelected();
-
-    // Sequence Number
-    addConnection(mpcSampler->project->sequencer->onSequenceSelected.connect([this](int sequenceIndex) {
-        headerSection->sequenceNumberWidget->setValue(fmt::format("{}", sequenceIndex + 1));
-    }));
-    headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
 
     // Input Quantize
     addConnection(controlSurface->f3Button->onPressed.connect([this]() {
@@ -188,12 +171,12 @@ void DevicePage::onActivated() {
 
 
 
-    signalConnections.push_back(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
+    addConnection(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
         headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
     }));
     headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
 
-    signalConnections.push_back(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
+    addConnection(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
         if(offset > 0) {
             mpcSampler->project->metronomeVolumeDb.incrementValue(true);
         } else if(offset < 0) {
@@ -202,10 +185,7 @@ void DevicePage::onActivated() {
     }));
 
 
-    functionWidgets[2]->setLabel("InputQ");
-    functionWidgets[3]->setLabel("Output");
-    functionWidgets[4]->setLabel("Solo");
-    functionWidgets[5]->setLabel("Mute");
+    
 }
 
 void DevicePage::draw(Vector offset) {

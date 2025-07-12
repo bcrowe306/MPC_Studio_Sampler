@@ -1,6 +1,8 @@
 
+pitchRange = 5
+minHeight = 8
 
-length = 4 
+gridHeight = 96-35
 
-for i in range(25):
-    print(i // length)
+cellHeight = int(gridHeight / pitchRange) if gridHeight / pitchRange > minHeight else minHeight
+print(cellHeight)

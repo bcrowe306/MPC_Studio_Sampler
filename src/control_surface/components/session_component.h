@@ -60,9 +60,12 @@ public:
             }
         }));
 
+        // Pads connections
         addConnection(controlSurface->pads->onMidiIn.connect([this](int index, choc::midi::ShortMessage &msg) {
             onPadsPlay(index, msg);
         }));
+
+        // Pad Bank Buttons
         addConnection(controlSurface->padBankAButton->onPressed.connect([this]() {
             onPadBankAButtonPressed();
         }));
@@ -75,10 +78,13 @@ public:
         addConnection(controlSurface->padBankDButton->onPressed.connect([this]() {
             onPadBankDButtonPressed();
         }));
+
+        // Track Selected Track Feedback
         addConnection(controlSurface->mpcSampler->project->onTrackSelected.connect([this](int trackIndex) {
             onTrackSelected(trackIndex);
         }));
 
+        // Pad Feedback
         addConnection(mpcSampler->project->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
             padFeedback(trackIndex, msg);
         }));
@@ -128,7 +134,9 @@ public:
         auto track = mpcSampler->project->getTracks()[trackToPlay]; // Get the track from the project
         if (track) {
             mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
-            mpcSampler->sendMidiInput(msg);
+            if(!controlSurface->shiftButton->isPressed) {
+                mpcSampler->sendMidiInput(msg);
+            } 
         }
 
     };

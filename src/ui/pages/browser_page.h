@@ -13,8 +13,6 @@ class BrowserPage : public PageWidget {
     // Device-specific UI elements and layout
 public:
 
-    // Widgets for the browser page
-    vector<shared_ptr<FunctionWidget>> functionWidgets;
 
     // Constructor for the browser page
     BrowserPage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y,
@@ -22,26 +20,16 @@ public:
                 const std::string &title = "Browser Page")
         : PageWidget(mpcSampler, x, y, width, height), _title(title) 
     {
-        createWidgets();
     }
 
-    void createWidgets() {
-        for (int i = 0; i < 6; i++) {
-          auto functionWidget = make_shared<FunctionWidget>(
-              i * 60, 96 - 11, 60, 13, fmt::format("F{}", i + 1), false,
-              "center");
-          functionWidgets.push_back(functionWidget);
-          this->add_child(functionWidget);
-        }
+
+    void onActivated() override {
         functionWidgets[0]->setLabel("Root");
         functionWidgets[1]->setLabel("Next");
         functionWidgets[2]->setLabel("Scroll");
         functionWidgets[3]->setLabel("Auto");
         functionWidgets[4]->setLabel("Prev");
         functionWidgets[5]->setLabel("Load");
-    }
-
-    void onActivated() override {
         // Connect signals and set up the page when activated
         signalConnections.push_back(controlSurface->jogWheel->onOffset.connect([this](int offset) {
             mpcSampler->browser->scroll(offset);

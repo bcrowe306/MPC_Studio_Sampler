@@ -4,11 +4,23 @@
             * Yaml has been chosen
             * Each object needs to have a serialize and deserialize method
         * Need to auto save on time interval and on certain events like sample load, and sequence record.
+    * Device:
+        * Implement Choke Groups
     * Sequencing improvements
         * Build out page.. Need prototype in figma
+        * Implement Swing
         * change sequence length
         * Have sequence auto batch commands on each loop cycle
         * Implement Overdub record moe. Currently overdub is the default, but needs to be toggled on and off.
+        * Sequence Screen has 3 modes of editing
+            * 1. Sequence Mode: Adjust start end of entire sequence - default
+            * 2. Line: Make adjustments to each note in a line
+            * 3. Note: Make adjustments to individual notes
+        * Sequence More Actions
+            * Transpose
+            * 2x speed up
+            * /2x slow down
+            * Quantize
     * UI and page Routing
         * By default, the Data wheel, qlinks, qlink scroll, directional pad, plus and minus buttons follow the screens page.
         * Finally implemented an actual router with push and pop functionality

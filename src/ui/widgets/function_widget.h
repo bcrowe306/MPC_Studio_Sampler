@@ -10,9 +10,9 @@
 #include <memory>
 #include <string>
 
-class FunctionWidget : public Widget {
+class FunctionButtonWidget : public Widget {
 public:
-    FunctionWidget(unsigned int x, unsigned int y, unsigned int width, unsigned int height,
+    FunctionButtonWidget(unsigned int x, unsigned int y, unsigned int width, unsigned int height,
                    string label = "F1", bool selected = false, string align = "center", int fontSize = 11)
         : Widget(x, y, width, height), _label(label), _selected(selected), _align(align), _fontSize(fontSize) {
         render();

@@ -13,16 +13,13 @@ using std::vector;
 class DevicePage : public PageWidget {
     // Device-specific UI elements and layout
 public:
-    vector<shared_ptr<FunctionWidget>> functionWidgets;
+    shared_ptr<HeaderSection> headerSection;
     vector<shared_ptr<ParameterWidget>> parameterWidgets;
-    vector<sigslot::connection> trackConnections;
-    vector<sigslot::connection> seqConnections;
     shared_ptr<ButtonWidget> outputWidget;
     shared_ptr<MeterWidget> meterWidget;
     shared_ptr<ButtonWidget> soloButtonWidget;
     shared_ptr<ButtonWidget> muteButtonWidget;
     shared_ptr<TextWidget> volumeLabelWidget;
-    shared_ptr<HeaderSection> headerSection;
     shared_ptr<WaveformSection> waveformSection;
     std::string songPositionDisplay = "00:00:00";
     
@@ -33,8 +30,8 @@ public:
     
     void createWidgets();
     void onFrame() override;
-    void onSeqSelected();
-    void onTrackSelected(int trackIndex = -1);
+    void onSequenceSelected(int sequenceIndex = -1) override;
+    void onTrackSelected(int trackIndex = -1) override;
     void onActivated() override;
     void draw(Vector offset) override;
 };

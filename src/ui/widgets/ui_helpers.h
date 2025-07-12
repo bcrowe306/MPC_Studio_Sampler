@@ -303,3 +303,25 @@ inline static void cairo_draw_horizontal_progress_bar(cairo_t *cr, double x, dou
     cairo_rectangle(cr, x, y, width * progress, height);
     cairo_fill(cr);
 }
+
+inline static void cairo_draw_horizontal_dotted_line(cairo_t *cr, double x1, double x2, double y, bool color = true) {
+    double dash_length = 2;
+    double gap_length = 3.0;
+    cairo_set_color(cr, color);
+    cairo_set_dash(cr, &dash_length, 1, gap_length);
+    cairo_move_to(cr, x1, y);
+    cairo_line_to(cr, x2, y);
+    cairo_stroke(cr);
+    cairo_set_dash(cr, nullptr, 0, 0); // Reset dash pattern
+}
+
+inline static void cairo_draw_vertical_dotted_line(cairo_t *cr, double x, double y1, double y2, bool color = true) {
+    double dash_length = 2;
+    double gap_length = 3.0;
+    cairo_set_color(cr, color);
+    cairo_set_dash(cr, &dash_length, 1, gap_length);
+    cairo_move_to(cr, x, y1);
+    cairo_line_to(cr, x, y2);
+    cairo_stroke(cr);
+    cairo_set_dash(cr, nullptr, 0, 0); // Reset dash pattern
+}

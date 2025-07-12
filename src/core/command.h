@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <vector>
 
-using lab::FunctionNode;
 using std::any;
 using std::string;
 using std::shared_ptr;
@@ -97,14 +96,14 @@ private:
 class UndoManager {
 public:
     std::atomic<bool> hasFlushableCommands = false;
-    shared_ptr<FunctionNode> undoNode;
+    shared_ptr<lab::FunctionNode> undoNode;
     shared_ptr<lab::AudioContext> _audioContext;
     UndoManager(shared_ptr<lab::AudioContext> audioContext, float debounceTimeMs = 150.0f)
         :  _audioContext(audioContext), _batchingEnabled(false), _currentBatchId("")
     {
         _debounceTimeSamples = msToSamples(debounceTimeMs, audioContext->sampleRate());
         // Initialize the undo node
-        undoNode = std::make_shared<FunctionNode>(*_audioContext.get());
+        undoNode = std::make_shared<lab::FunctionNode>(*_audioContext.get());
         undoNode->start(0.0);
         undoNode->setFunction([this](lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
             // Process the audio block for the undo node
