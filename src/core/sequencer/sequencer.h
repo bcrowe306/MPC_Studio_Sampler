@@ -176,7 +176,7 @@ public:
             auto seq = getSelectedSequence();
             if (seq) {
                 seq->setNextState(
-                    Sequence::SequenceState::Recording); // Set the sequence to
+                    Sequence::SequenceState::Precount); // Set the sequence to
                                                          // recording state
             }
         }

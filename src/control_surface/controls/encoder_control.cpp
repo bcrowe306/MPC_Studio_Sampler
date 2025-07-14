@@ -6,7 +6,9 @@ EncoderControl::EncoderControl(uint8_t controlChannel, uint8_t controlId, const 
     : Control(Type::CC, controlChannel, controlId, label, active) {
     this->onValue.connect([this](ShortMessage & msg) {
         // Emit signal when encoder value changes
-        auto offsetAmount = getOffsetAmount(msg.getControllerValue());
+        int offsetAmount = getOffsetAmount(msg.getControllerValue());
+
+        genSlowOffset(offsetAmount);
         onOffset(offsetAmount);
         onOffsetUnit(offsetAmount / 64);
 
@@ -29,4 +31,25 @@ int EncoderControl::getOffsetAmount(uint8_t value) const {
         offsetAmount = offsetAmount; // No change needed
     }
     return offsetAmount;
+}
+
+void EncoderControl::genSlowOffset(int offsetAmount) {
+    // Generate an offset event based on 2 or more increments/decrements
+    if (offsetAmount > 0) {
+        incCount++; // Increment the count
+        if(incCount > _slowOffsetAmount) {
+            
+            incCount = 0; // Reset the increment count
+            onIncrementSlow(offsetAmount); // Emit signal for slow increment
+            onOffsetSlow(offsetAmount); // Emit signal with slow offset
+            onOffsetSlowUnit(offsetAmount / 64.0); // Emit signal with slow offset as a unit
+        }
+    } else if (offsetAmount < 0) {
+        _decCount++; // Increment the decrement count
+        if(_decCount > _slowOffsetAmount) {
+            _decCount = 0; // reset the decrement count
+            onDecrementSlow(offsetAmount); // Emit signal for slow decrement
+            onOffsetSlow(offsetAmount); // Emit signal with slow offset
+        }
+    }
 }

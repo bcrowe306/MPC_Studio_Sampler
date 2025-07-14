@@ -216,6 +216,7 @@ private:
     void _connectSequencer(){
         // Connect sequencer
         playhead->onTick.connect(std::bind(&Sequencer::onTick, sequencer.get(), std::placeholders::_1)); // Connect playhead ticks to sequencer ticks
+        playhead->onPrecountTick.connect(std::bind(&Sequencer::onPrecountTick, sequencer.get(), std::placeholders::_1, std::placeholders::_2)); // Connect precount ticks to sequencer
         playhead->onPlayheadStateChanged.connect(std::bind(&Sequencer::onPlayheadStateChanged, sequencer.get(), std::placeholders::_1)); // Connect playhead state changes to sequencer
         sequencer->onMidiOutput.connect(std::bind(&Project::_onSequencerMidiOutput, this, std::placeholders::_1, std::placeholders::_2)); // Connect sequencer MIDI output to project
 

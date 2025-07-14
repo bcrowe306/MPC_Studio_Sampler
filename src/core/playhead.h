@@ -228,6 +228,7 @@ class Playhead{
             // Do precount logic
             if(_precountTicks >= (precountBars.getValue() * ticksPerBar) - 1) {
                 // If the precount has reached the specified number of bars, switch to recording state
+                onPrecountTick(_precountTicks, precountBars.getValue() * ticksPerBar); // Emit precount tick signal
                 setState(PlayheadState::RECORDING); // Set the playhead state to recording
                 _precountTicks = 0; // Reset precount ticks
             } else {

@@ -306,7 +306,7 @@ inline static void cairo_draw_horizontal_progress_bar(cairo_t *cr, double x, dou
 
 inline static void cairo_draw_horizontal_dotted_line(cairo_t *cr, double x1, double x2, double y, bool color = true) {
     double dash_length = 2;
-    double gap_length = 3.0;
+    double gap_length = 6.0;
     cairo_set_color(cr, color);
     cairo_set_dash(cr, &dash_length, 1, gap_length);
     cairo_move_to(cr, x1, y);
@@ -317,7 +317,7 @@ inline static void cairo_draw_horizontal_dotted_line(cairo_t *cr, double x1, dou
 
 inline static void cairo_draw_vertical_dotted_line(cairo_t *cr, double x, double y1, double y2, bool color = true) {
     double dash_length = 2;
-    double gap_length = 3.0;
+    double gap_length = 6.0;
     cairo_set_color(cr, color);
     cairo_set_dash(cr, &dash_length, 1, gap_length);
     cairo_move_to(cr, x, y1);

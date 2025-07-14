@@ -40,6 +40,20 @@ public:
     }
     ~MidiClip() = default;
 
+    void doubleClipLengthAndEvents(int lengthInTicks) {
+        // Double the length of the clip by adjusting the loop point
+        vector<MidiEvent> newEvents;
+        newEvents.reserve(events.size() ); // Reserve space for doubled events
+        for(auto &event : events) {
+            // Create a new event with the same properties but adjusted start and end ticks
+            newEvents.emplace_back(getNewEventId(), event.startTick + lengthInTicks, event.startTick + event.duration + lengthInTicks, event.startEvent, event.endEvent);
+        }
+
+        for(auto &event : newEvents) {
+            addEvent(event); // Add the new event to the clip
+        }
+    }
+
     void addEvent(MidiEvent event) {
         // Add event to the clip. If an event with the same pitch and startTick already exists, replace it
         auto it = std::find_if(events.begin(), events.end(),
@@ -68,7 +82,8 @@ public:
 
     void removeEvent(int eventId) {
         // Remove an event by its unique ID
-        // TODO: may produce segment fault is modifying while reading. May need to implement a removal queue to process removals after iterating in between ticks
+        // TODO: may produce segment fault is modifying while reading. Currently a mutex and lock is used... BAD because read is happening in the audio thread!
+        // Implement a better thread-safe method, maybe CAS or spinlock to check if another thread is reading/modifying
         // For now we will just lock the mutex..
         auto it = std::remove_if(events.begin(), events.end(),
                                  [eventId](const MidiEvent &e) { return e.id == eventId; });
@@ -77,6 +92,13 @@ public:
             events.erase(it, events.end()); // Erase the removed events
             onClipChanged(); // Emit signal when the clip changes
         }
+    }
+
+    void clear() {
+        // Clear all events in the clip
+        std::lock_guard<std::mutex> lock(_eventsMutex);
+        events.clear(); 
+        onClipChanged(); 
     }
 
     void setLoopPoint(int newLoopPoint) {

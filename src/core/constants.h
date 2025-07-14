@@ -12,4 +12,5 @@ static inline const int kMaxClips = 64; // Maximum number of clips in a sequence
 static inline const int kMaxEffects = 8; // Maximum number of events in a clip
 static const double kBPM_MAX = 300.0; // Maximum BPM
 static const double kBPM_MIN = 30.0;  // Minimum BPM
-static const int kDefaultSequenceLengthInTicks = 480 * 4 * 2; // Default sequence length in ticks (4 bars, 4 beats per bar, 480 ticks per beat) 
+static const int kDefaultSequenceLengthInTicks = 3840; // Default sequence length in ticks (4 bars, 4 beats per bar, 480 ticks per beat) 
+static const int kMinSequenceLengthInTicks = 1920; // Minimum sequence length in ticks (4 bars, 4 beats per bar, 480 ticks per beat)

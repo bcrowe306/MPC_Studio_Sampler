@@ -5,9 +5,12 @@
 #include "fmt/format.h"
 #include <string>
 #include <unordered_map>
+#include <atomic>
 
 using std::string;
 using std::unordered_map;
+using std::atomic;
+using std::memory_order_relaxed;
 
 struct TempoChange {
     int tick;   // Tick position of the tempo change
@@ -23,23 +26,21 @@ struct SongPosition {
     int bar;          // Current bar number
     int beat;         // Current beat number within the bar
     int sixteenthNote; // Current sixteenth note within the beat
-    int tick = 0;         // Current tick position
+    atomic<int> tick = 0;         // Current tick position
     int lengthInTicks;
 
 
     SongPosition& operator++() {
-        ++tick;
+        tick.fetch_add(1, memory_order_relaxed);
         return *this;
     }
 
-    SongPosition operator++(int) {
-        SongPosition temp = *this;
-        ++tick;
-        return temp;
+    void operator++(int) {
+        tick.fetch_add(1, memory_order_relaxed);
     }
 
     float getSongPositionInBeatTime() const {
-        return static_cast<float>(tick) / (float)kTPQN; // Convert tick to beat time
+        return static_cast<float>(tick.load(memory_order_relaxed)) / (float)kTPQN; // Convert tick to beat time
     }
 
     float getSongPositionInMs(float bpm, float sampleRate = 48000.0) const {
@@ -52,12 +53,13 @@ struct SongPosition {
     }
 
     void updateFromTick(int timeSignatureNumerator, int timeSignatureDenominator) {
+        int currentTick = this->tick.load(memory_order_relaxed);
         int ticksPerBar = kTPQN * timeSignatureNumerator;
         int ticksPerBeat = kTPQN / (timeSignatureDenominator / 4);
         int ticksPerSixteenth = ticksPerBar / 16;
-        this-> bar = this->tick / ticksPerBar;
-        this-> beat = (this->tick % ticksPerBar) / ticksPerBeat;
-        this-> sixteenthNote = (this->tick % ticksPerBeat) / ticksPerSixteenth;
+        this-> bar = currentTick / ticksPerBar;
+        this-> beat = (currentTick % ticksPerBar) / ticksPerBeat;
+        this-> sixteenthNote = (currentTick % ticksPerBeat) / ticksPerSixteenth;
     }
   };
   
