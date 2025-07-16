@@ -6,7 +6,6 @@
 #include <memory>
 #include <vector>
 
-using sigslot::connection;
 
 
 class SessionComponent : public Component {
@@ -16,12 +15,10 @@ public:
     SessionComponent(shared_ptr<MPCStudioBlackControlSurface> controlSurface)
         : Component(controlSurface) {
         name = "SessionComponent"; // Set the name for this component
-        std::cout << "SessionComponent initialized.\n";
     };
     ~SessionComponent() override = default;
 
     void onActivateComponent() override {
-        std::cout << "SessionComponent activated.\n";
         
         // Full Level Button
         addConnection(controlSurface->fullLevelButton->onPressed.connect([this]() {
@@ -135,6 +132,7 @@ public:
         if (track) {
             mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
             if(!controlSurface->shiftButton->isPressed) {
+                msg.data[1] = 60; // Set the note number to 60 (Middle C) for playback
                 mpcSampler->sendMidiInput(msg);
             } 
         }
@@ -189,7 +187,6 @@ public:
     void setTrackBankIndex(int index) {
         // Set the track bank index and update the session component accordingly
         trackBankIndex = index;
-        std::cout << "Track Bank Index set to: " << trackBankIndex << "\n";
         // index to padbank mapping
         std::vector<shared_ptr<TwoColorButtonControl>> padBankButtons = {
             controlSurface->padBankAButton,

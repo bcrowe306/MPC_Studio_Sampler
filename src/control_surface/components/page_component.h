@@ -60,7 +60,6 @@ public:
     };
 
     void onDeactivateComponent() override {
-        std::cout << "PageComponent deactivated.\n";
         // Additional deactivation logic can be added here
     };
 

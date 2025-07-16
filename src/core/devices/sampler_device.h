@@ -80,7 +80,7 @@ public:
         // Implement deserialization logic if needed
     }
 
-    void midiInput(choc::midi::ShortMessage &msg)  {
+    void midiInput(choc::midi::ShortMessage &msg) override {
         if(msg.isNoteOn()) {
             float velocity = msg.getVelocity() / 127.0f; // Normalize velocity to 0.0 - 1.0
             _velocityNode->gain()->setValue(velocity); // Set the gain based on velocity

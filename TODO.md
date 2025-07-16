@@ -1,4 +1,18 @@
 * TODO
+    * Must improve loading of samples and files in general
+        * Aux thread to load samples from disk... Midi thread cannot freeze waiting on this.
+        * Maybe come up with a system of pushing commands unto a queue to be picked up by main thread.
+        * Need to tweak the loading of samples into a AudioBus. Right now weird artifacts are happening when I change samples.
+    * SamplerDevice.
+        * First iteration of polyphonic sampler is complete.
+        * Tweak voice allocator to steal old samples even when sustain pedal is active.
+        * Features still needed:
+            * filter and filter env
+            * detune and pitch env
+            * oneshot sample mode
+            * mono mode and legato
+            * start and end samples
+            * looping
     * Application
         * Time to make some progress on serialization
             * Yaml has been chosen

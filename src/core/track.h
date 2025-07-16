@@ -1,7 +1,9 @@
 #pragma once
 #include "LabSound/LabSound.h"
 #include "LabSound/core/AudioContext.h"
+#include "core/devices/device_base.h"
 #include "core/devices/sampler_device.h"
+#include "core/devices/poly_sampler.h"
 #include "meter_node.h"
 #include "core/value_receiver.h"
 #include <algorithm>
@@ -28,7 +30,7 @@ public:
     shared_ptr<AnalyserNode> input;
     shared_ptr<AnalyserNode> output;
     shared_ptr<AudioContext> context;
-    shared_ptr<SamplerDevice> samplerDevice;
+    shared_ptr<PolySampler> trackDevice;
 
     sigslot::signal<bool> onIsEmpty; // Signal emitted when the track is empty or not
     sigslot::signal<> onSamplerDeviceChanged; // Signal emitted when the sampler device is changed
@@ -72,11 +74,11 @@ public:
     void setSolo(bool solo) {
         
     }
-    
-    void setSamplerDevice(shared_ptr<SamplerDevice> device) {
-        samplerDevice = device;
-        if (samplerDevice) {
-            context->connect(input, samplerDevice->output, 0, 0);
+
+    void setSamplerDevice(shared_ptr<PolySampler> device) {
+        trackDevice = device;
+        if (trackDevice) {
+            context->connect(input, trackDevice->output, 0, 0);
             context->synchronizeConnections();
             _isEmpty = false; // Track is no longer empty after creating a sampler device
             onIsEmpty(false); 
@@ -84,9 +86,9 @@ public:
     }
     
     void createSamplerDevice(const std::string& filePath) {
-        samplerDevice = make_shared<SamplerDevice>(context);
-        samplerDevice->setFilePath(filePath); // Set the file path for the sampler device
-        context->connect(input, samplerDevice->output, 0, 0);
+        trackDevice = make_shared<PolySampler>(context);
+        trackDevice->filePath.setValue(filePath); // Set the file path for the sampler device
+        context->connect(input, trackDevice->output, 0, 0);
         context->synchronizeConnections();
         onSamplerDeviceChanged();
         _isEmpty = false; // Track is no longer empty after creating a sampler device
@@ -103,8 +105,8 @@ public:
 
     void midiInput(choc::midi::ShortMessage &msg) {
         
-        if (samplerDevice) {
-            samplerDevice->midiInput(msg); // Forward MIDI input to the sampler device
+        if (trackDevice) {
+            trackDevice->midiInput(msg); // Forward MIDI input to the sampler device
         }
     }
 private:
@@ -124,6 +126,8 @@ class Track {
     sigslot::signal<float, float> onLevelMetersChanged;
     sigslot::signal<> onDeviceUpdate; // Signal emitted when the sampler device is changed
     sigslot::signal<int, choc::midi::ShortMessage&> midiOutput;
+
+    // Constructor for Track
     Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
           volumeDb(make_shared<VRFloat>("Volume", 0.0f, -60.0f, 6.0f, 1, 0.1, undoManager)),
           pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
@@ -155,7 +159,7 @@ class Track {
     ~Track() = default;
 
     bool isTrackEmpty() {
-        return trackNode->samplerDevice == nullptr; // Check if the track has a sampler device
+        return trackNode->trackDevice == nullptr; // Check if the track has a sampler device
     }
     void createSamplerDevice(const std::string& filePath) {
         trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
@@ -163,10 +167,10 @@ class Track {
     }
 
     void loadSample(const std::string& filePath) {
-        if (!trackNode->samplerDevice) {
+        if (!trackNode->trackDevice) {
             trackNode->createSamplerDevice(filePath); // Create a new sampler device if it doesn't exist
         } else {
-            trackNode->samplerDevice->loadSample(filePath); // Load the sample into the existing sampler device
+            trackNode->trackDevice->filePath.setValue(filePath); // Load the sample into the existing sampler device
         }
         onDeviceUpdate(); // Emit signal that the device has been updated
     }
@@ -179,9 +183,9 @@ class Track {
     }
 
     vector<float> * getWaveformData() {
-        if (trackNode->samplerDevice) {
-            trackNode->samplerDevice->generateWaveformData(); // Generate waveform data from the sampler device
-            return &trackNode->samplerDevice->_waveformData; // Return the waveform data
+        if (trackNode->trackDevice) {
+            trackNode->trackDevice->generateWaveformData(); // Generate waveform data from the sampler device
+            return &trackNode->trackDevice->_waveformData; // Return the waveform data
         }
         return nullptr; // Return nullptr if no sampler device is present
     }
@@ -233,7 +237,7 @@ class Track {
     }
 
     string getDeviceTypeName(){
-        if (trackNode->samplerDevice) {
+        if (trackNode->trackDevice) {
             return "Sampler";
         }
         return "Empty";
