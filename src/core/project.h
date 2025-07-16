@@ -39,6 +39,38 @@ inline const std::vector<std::string> kDisplayPageNames = {
 
 class Project {
 public:
+
+
+     //  Listeners for project events
+    sigslot::signal<> onProjectLoaded; // Signal emitted when the project is loaded
+    sigslot::signal<> onProjectSaved; // Signal emitted when the project is saved
+    sigslot::signal<int> onTrackSelected; // Signal emitted when a track is selected
+    sigslot::signal<bool> onIsPlaying; // Signal emitted when playback changes state
+    sigslot::signal<bool> onIsRecording; // Signal emitted when recording starts
+
+    // Public members
+    shared_ptr<TrackNode> masterTrack;
+    shared_ptr<TrackNode> cueTrack; // Cue track for the project
+    shared_ptr<AudioContext> audioContext; // Audio context for the project
+    shared_ptr<Timer> timer; // MIDI clock for the project
+    shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
+    shared_ptr<Playhead> playhead; // Playhead for the project
+    shared_ptr<UndoManager> undoManager; // Undo manager for the project
+    shared_ptr<TapTempoNode> tapTempoNode; // Tap tempo node for the project
+    shared_ptr<Sequencer> sequencer; // Sequencer for the project
+
+
+    // Project parameters
+    VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
+    ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>( "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
+    VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
+    VRFloat metronomeVolumeDb = VRFloat("metronomeVolumeDb", -6.0f, -60.0f, 6.0f, 1.0, 0.01, undoManager); // Metronome volume in dB
+    VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
+    VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
+    VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
+    VRBool inputQuantize = VRBool("inputQuantize", true, undoManager); // Input quantization parameter
+    // IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
+
     Project(std::shared_ptr<AudioContext> audioContext, std::shared_ptr<Timer> timer) {
         // Initialize the project with an empty track list
         this->audioContext = audioContext;
@@ -73,35 +105,7 @@ public:
 
     ~Project() = default;
 
-    //  Listeners for project events
-    sigslot::signal<> onProjectLoaded; // Signal emitted when the project is loaded
-    sigslot::signal<> onProjectSaved; // Signal emitted when the project is saved
-    sigslot::signal<int> onTrackSelected; // Signal emitted when a track is selected
-    sigslot::signal<bool> onIsPlaying; // Signal emitted when playback changes state
-    sigslot::signal<bool> onIsRecording; // Signal emitted when recording starts
-
-    // Public members
-    shared_ptr<TrackNode> masterTrack;
-    shared_ptr<TrackNode> cueTrack; // Cue track for the project
-    shared_ptr<AudioContext> audioContext; // Audio context for the project
-    shared_ptr<Timer> timer; // MIDI clock for the project
-    shared_ptr<MetronomeNode> metronomeNode; // Metronome node for the project
-    shared_ptr<Playhead> playhead; // Playhead for the project
-    shared_ptr<UndoManager> undoManager; // Undo manager for the project
-    shared_ptr<TapTempoNode> tapTempoNode; // Tap tempo node for the project
-    shared_ptr<Sequencer> sequencer; // Sequencer for the project
-
-    // Project parameters
-    VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
-    ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>( "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
-    VRBool metronomeEnabled = VRBool("metronomeEnabled", true, undoManager); // Parameter to enable/disable the metronome
-    VRFloat metronomeVolumeDb = VRFloat("metronomeVolumeDb", -6.0f, -60.0f, 6.0f, 1.0, 0.01, undoManager); // Metronome volume in dB
-    VRBool returnToZero = VRBool("returnToZero", true, undoManager); // Parameter to return to zero position when stopping playback
-    VRFloat bpm = VRFloat("bpm", 120.0f, 30.0f, 300.0f, 1.0, 0.01, undoManager); // BPM parameter with range from 30 to 300
-    VRInt timeSignatureNumerator = VRInt("timeSignatureNumerator", 4, 1, 16, 1, 1, undoManager); // Time signature numerator parameter
-    VRBool inputQuantize = VRBool("inputQuantize", true, undoManager); // Input quantization parameter
-    // IntOptionsParameter timeSignatureDenominator = IntOptionsParameter("timeSignatureDenominator", { 1, 2, 4, 8, 16 }, 2); // Time signature denominator parameter with options
-
+   
 
     void serialize() {
         // Implement serialization logic if needed
@@ -113,8 +117,8 @@ public:
 
     
 
-    const std::vector<std::shared_ptr<Track>>& getTracks() const {
-        return tracks;
+    const std::array<std::shared_ptr<Track>, 64>& getTracks() const {
+        return _tracks;
     }
 
     int getMaxTracks() const {
@@ -126,23 +130,23 @@ public:
     }
 
     shared_ptr<Track> selectTrack(int index) {
-        if (index < 0 || index >= static_cast<int>(tracks.size())) {
+        if (index < 0 || index >= static_cast<int>(_tracks.size())) {
             std::cerr << "Invalid track index: " << index << std::endl;
             return nullptr;
         }
         if (_selectedTrackIndex == index) {
-            return tracks[_selectedTrackIndex]; // Return the already selected track
+            return _tracks[_selectedTrackIndex]; // Return the already selected track
         }   
         _selectedTrackIndex = index;
         onTrackSelected(index); // Emit signal that a track has been selected
-        return tracks[_selectedTrackIndex];
+        return _tracks[_selectedTrackIndex];
     }
 
     shared_ptr<Track> selectedTrack() const {
-        if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(tracks.size())) {
+        if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(_tracks.size())) {
             return nullptr; // No track selected
         }
-        return tracks[_selectedTrackIndex];
+        return _tracks[_selectedTrackIndex];
     }
 
     int selectedTrackIndex() const {
@@ -213,6 +217,9 @@ public:
 
 private:
 
+    std::array<std::shared_ptr<Track>, kMaxTracks> _tracks; // List of tracks in the project
+    std::array<std::shared_ptr<Track>, kMaxBusses> _busses; // List of busses in the project
+
     void _connectSequencer(){
         // Connect sequencer
         playhead->onTick.connect(std::bind(&Sequencer::onTick, sequencer.get(), std::placeholders::_1)); // Connect playhead ticks to sequencer ticks
@@ -224,18 +231,15 @@ private:
 
     void _onSequencerMidiOutput(int trackIndex, ShortMessage &msg) {
         // Forward MIDI output from the sequencer to the project
-        if (trackIndex < 0 || trackIndex >= static_cast<int>(tracks.size())) {
+        if (trackIndex < 0 || trackIndex >= static_cast<int>(_tracks.size())) {
             std::cerr << "Invalid track index: " << trackIndex << std::endl;
             return;
         }
-        tracks[trackIndex]->midiPlayback(msg); // Emit MIDI output signal for the selected track
+        _tracks[trackIndex]->midiPlayback(msg); // Emit MIDI output signal for the selected track
     }
     
     void _createTracks() {
         
-        // Reserve space for 64 tracks
-        tracks = std::vector<std::shared_ptr<Track>>();
-        tracks.reserve(kMaxTracks); 
 
         // create all 64 tracks
         for (int i = 0; i < kMaxTracks; ++i) {
@@ -256,7 +260,7 @@ private:
             audioContext->connect(
                 masterTrack->input, track->getOutput(), 0,
                 0); // Connect track output to audio context destination
-            tracks.push_back(track); // Add the track to the list
+            _tracks[i] = track; // Add the track to the list
             }
             audioContext->synchronizeConnections(); // Synchronize connections
             selectTrack(0); // Select the first track by default
@@ -269,7 +273,7 @@ private:
             audioContext->connect(
                 masterTrack->input, bus->getOutput(), 0,
                 0); // Connect bus output to audio context destination
-            tracks.push_back(bus); // Add the bus to the list
+            _busses[i] = bus; // Add the bus to the list
         }
     }
     void _connectParams (){
@@ -308,7 +312,7 @@ private:
 
     int _getNextTrackIndex() {
         // Find the next available track index
-        return static_cast<int>(tracks.size());
+        return static_cast<int>(_tracks.size());
     }
 
     int _selectedTrackIndex = -1; // Index of the currently selected track, -1 if none selected
@@ -318,5 +322,5 @@ private:
         int nextIndex = _getNextTrackIndex();
         return "Track " + std::to_string(nextIndex + 1); // Track names start from 1
     }
-    std::vector<std::shared_ptr<Track>> tracks; // List of tracks in the project
+    
 };
