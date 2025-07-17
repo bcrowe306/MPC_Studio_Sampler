@@ -22,11 +22,12 @@ public:
     }
 
     void processVelocity(choc::midi::ShortMessage &msg){
+        auto newMsg = choc::midi::ShortMIDIMessageStorage();
         if(!enabled.get()) {
             return; // If full level is not enabled, do nothing
         }
         if(msg.isNoteOn()){
-            msg.data[2] = velocityMap[currentLevel]; // Set the velocity to the current level
+            newMsg = choc::midi::ShortMIDIMessageStorage(msg.data()[0], msg.data()[1], velocityMap[currentLevel]); // Create a new MIDI message
         }
     }
 

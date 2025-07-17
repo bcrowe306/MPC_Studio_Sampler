@@ -406,10 +406,12 @@ public:
             }
             for (auto &event : clip.events) {
                 if (event.startTick == _songPosition.tick.load(memory_order_relaxed)) {
-                    fireEvent(trackIndex, event.startEvent); // Fire the start event
+                    auto msg = ShortMessage(event.startEvent.data()[0], event.pitch, event.velocity); // Create a new MIDI message
+                    fireEvent(trackIndex, msg); // Fire the start event
                 }
                 if (event.type == MidiEvent::EventType::Note && event.startTick + event.duration == _songPosition.tick.load(memory_order_relaxed)) {
-                    fireEvent(trackIndex, event.endEvent); // Fire the end event
+                    auto msg = ShortMessage(event.endEvent.data()[0], event.pitch, 0); // Create a new MIDI message for note off
+                    fireEvent(trackIndex, msg); // Fire the end event
                 }
             }
         }

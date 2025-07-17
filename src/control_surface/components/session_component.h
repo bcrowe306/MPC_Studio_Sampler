@@ -132,8 +132,9 @@ public:
         if (track) {
             mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
             if(!controlSurface->shiftButton->isPressed) {
-                msg.data[1] = 60; // Set the note number to 60 (Middle C) for playback
-                mpcSampler->sendMidiInput(msg);
+                auto data = msg.data();
+                auto NewMsg = choc::midi::ShortMessage(data[0], 60, data[2]); // Create a new MIDI message
+                mpcSampler->sendMidiInput(NewMsg); // Send the MIDI message to the track
             } 
         }
 

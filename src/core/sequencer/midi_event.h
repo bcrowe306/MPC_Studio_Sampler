@@ -67,8 +67,6 @@ public:
         if (!startEvent.isNoteOn() && !startEvent.isNoteOff()) {
             return; // Only update pitch for NoteOn and NoteOff events
         }
-        startEvent.data[1] = pitch; // Update pitch in the start event
-        endEvent.data[1] = pitch; // Update pitch in the end event
     }
 
     void setStart(int newStartTick) {
@@ -102,9 +100,6 @@ public:
 
     void setVelocity(int newVelocity) {
         velocity = std::clamp(newVelocity, 0, 127); // Ensure velocity is within MIDI range
-        if (startEvent.isNoteOn()) {
-            startEvent.data[2] = velocity; // Update velocity in the start event
-        }
     }
 
     

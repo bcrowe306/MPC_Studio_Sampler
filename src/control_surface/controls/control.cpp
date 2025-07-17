@@ -58,7 +58,7 @@ void Control::sendMidi(vector<uint8_t> *msg) {
 
 void Control::sendMidi(ShortMessage &msg) {
     if (_midiOut) {
-        auto raw = msg.data;
+        auto raw = msg.data();
         vector<uint8_t> msg = {raw[0], raw[1], raw[2]};
         try {
             _midiOut->sendMessage(&msg);
