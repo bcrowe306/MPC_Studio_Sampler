@@ -79,6 +79,10 @@ public:
         loadBrowserItems(rootLocation, 0); // Load items from the new root directory
     }
 
+    void stopPreview() {
+        samplerDevice->stopSample();
+    }
+
     void printNavigationHistory() const {
         std::cout << "Navigation History:" << std::endl;
         for (const auto& item : _navigationHistoryStack) {
@@ -89,8 +93,7 @@ public:
     void previewItem(){
         auto selectedItem = _items[_scrollIndex];
         if (selectedItem.is_regular_file() && selectedItem.path().extension() == ".wav") {
-            samplerDevice->loadSample(selectedItem.path().string());
-            samplerDevice->playSample(); // Play the selected WAV file
+            samplerDevice->loadAndPlaySample(selectedItem.path().string());
         }
     }
 

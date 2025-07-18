@@ -10,7 +10,7 @@
             * filter and filter env
             * detune and pitch env
             * oneshot sample mode
-            * mono mode and legato
+            * mono mode and legato - either slide value needs to be implemented or custom SampledAudioNode needs to be created.
             * start and end samples
             * looping
     * Application
@@ -97,3 +97,15 @@
         * Filter
         * Saturation
         * Limiter0
+
+* BufferPlayer
+    * int start = 0;
+    * int end = -1;
+    * int length = 0;
+    * bool looping = false
+    * float playbackRate;
+    * int currentPosition = 0;
+    * trigger(int samplePosition = -1)
+    * shared_ptr<ChannelArrayBuffer> buffer
+    * bool reversed = false;
+    * void hasReachedEnd

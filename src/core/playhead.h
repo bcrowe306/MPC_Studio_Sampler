@@ -20,7 +20,7 @@ class Playhead{
 
         
         VRBool precount = VRBool("precount", true); // Value receiver for precount state
-        VRInt precountBars = VRInt("precountBars", 1, 1, 4); // Value receiver for number of bars in precount
+        VRInt precountBars = VRInt("precountBars", 1, 1, 4, 1,1); // Value receiver for number of bars in precount
 
         shared_ptr<Timer> timer; // MIDI clock for timing
  

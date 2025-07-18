@@ -13,7 +13,7 @@
       processFunction(r, me, channel, buffer, bufferSize); // Process the ADSR function
     });
 
-    reset();
+    resetEnvelope();
     setAttackRate(0);
     setDecayRate(0);
     setReleaseRate(0);
@@ -24,14 +24,18 @@
   }
 
   ADSR::~ADSR() {
-    // Destructor logic if needed
+    std::cout << "ADSR Destructor called" << std::endl; // Debug output for destructor
   }
 
 void ADSR::processFunction(lab::ContextRenderLock &r, lab::FunctionNode *me, int channel, float *buffer, int bufferSize) {
     for (int i = 0; i < bufferSize; ++i) {
         float amp = process();
-        buffer[i] = amp;
+          buffer[i] = amp;
     }
+}
+
+void ADSR::setMode(ADSRMode mode) {
+  this->mode = mode;
 }
 
 void ADSR::setAttackRate(float rate) {

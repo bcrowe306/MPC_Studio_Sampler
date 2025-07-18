@@ -241,7 +241,6 @@ void MidiEngine::midi_input_callback(double timestamp, std::vector<unsigned char
     std::string device_name = static_cast<MidiCallbackData*>(user_data)->deviceName;
     if(message->size() == 3){
         choc::midi::ShortMessage short_message(message->data(), message->size());
-        std::cout << "Msg: " << short_message.toHexString() << std::endl;
         engine->onMidiInput(device_name, short_message, timestamp);
     }
 }

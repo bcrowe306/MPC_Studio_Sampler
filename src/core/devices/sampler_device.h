@@ -4,6 +4,8 @@
 #include "core/value_receiver.h"
 #include "sigslot/signal.hpp"
 #include "audio/choc_MIDI.h"
+#include <atomic>
+#include <thread>
 #include <iostream>
 #include <string>
 #include "device_base.h"
@@ -103,40 +105,52 @@ public:
         }
     }
 
-    void setFilePath(const std::string &filePath) {
-        if (!_samplerNode) {
-          _samplerNode =
-              std::make_shared<lab::SampledAudioNode>(*_audioContext.get());
-        }
-        _audioBus =
-            lab::MakeBusFromFile(filePath, false, _audioContext->sampleRate());
-        if (_samplerNode && _audioBus) {
-          _samplerNode->setBus(_audioBus);
-        }
-    }
+
     void loadSample(const std::string &filePath) {
-        
-        clearSample(); // Clear any existing sample
-        setFilePath(filePath); // Set the file path for the sampler node
-        if (_audioBus) {
-            _samplerNode->setBus(_audioBus); // Load the audio bus into the sampler node
-            generateWaveformData(); // Generate waveform data after loading the sample
+        _loadThread = std::thread(&SamplerDevice::_doLoadSample, this, filePath, false);
+        _loadThread.detach(); // Detach the thread to allow it to run independently
+    }
+
+    void loadAndPlaySample(const std::string &filePath) {
+        _loadThread = std::thread(&SamplerDevice::_doLoadSample, this, filePath, true);
+        _loadThread.detach(); // Detach the thread to allow it to run independently
+    }
+
+    void stopSample() {
+        if (_samplerNode) {
+            _samplerNode->clearSchedules();
         } else {
-            std::cerr << "Failed to load sample: " << filePath << std::endl;
+            std::cerr << "Sampler node is not initialized." << std::endl;
         }
     }
 
-    void clearSample() {
-        // _samplerNode->setBus(nullptr); // Clear the audio bus from the sampler node
-        if(_audioBus) {
-            // _samplerNode->setBus(nullptr); // Clear the audio bus from the sampler node
-            _audioBus->reset();
-        }
-        _waveformData.clear(); // Clear the waveform data
-    }
+
+
 
 protected:
-    
+    void _doLoadSample(const std::string &filePath, bool playAfterLoad = false) {
+        _isLoading.store(true, std::memory_order_relaxed); // Set loading state to true
+        _waveformData.clear();
+        _samplerNode->clearSchedules();
+
+        _audioBus =
+            lab::MakeBusFromFile(filePath, false, _audioContext->sampleRate());
+
+        if (!_audioBus) {
+            std::cerr << "Failed to load sample: " << filePath << std::endl;
+            _isLoading.store(false, std::memory_order_relaxed); // Reset loading state
+            return;
+        }
+        _samplerNode->setBus(_audioBus);
+        generateWaveformData();
+
+        _isLoading.store(false, std::memory_order_relaxed); // Reset loading state
+        if(playAfterLoad) {
+            playSample(); // Play the sample if requested
+        }
+    }
+    std::thread _loadThread; // Thread for loading samples
+    std::atomic<bool> _isLoading = false;
     std::string _name = "Sampler";
     std::shared_ptr<lab::SampledAudioNode> _samplerNode; // Sampler node
     std::shared_ptr<lab::AudioBus> _audioBus; // Audio bus

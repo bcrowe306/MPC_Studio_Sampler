@@ -72,6 +72,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/t
 # target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/lib/LabSound/third_party/libsamplerate/src/libsamplerate.a)
 
 
+# Add File_load_test.cpp as a test executable
+add_executable(file_load_test ${CMAKE_SOURCE_DIR}/src/file_load_test.cpp)
+target_include_directories(file_load_test PRIVATE ${CMAKE_SOURCE_DIR}/lib/choc)
+
+
 # Resources
 
 set(RESOURCE_DIRS assets config)
@@ -88,6 +93,21 @@ endforeach()
 
 if(APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE
+  "-framework CoreMidi"
+  "-framework Cocoa"
+  "-framework Accelerate"
+  "-framework AudioToolbox"
+  "-framework AudioUnit"
+  "-framework CoreServices"
+  "-framework CoreAudio"
+  "-framework Carbon"
+  "-framework CoreFoundation"
+    "-framework IOKit"
+  )
+endif()
+
+if(APPLE)
+  target_link_libraries(file_load_test PRIVATE
   "-framework CoreMidi"
   "-framework Cocoa"
   "-framework Accelerate"

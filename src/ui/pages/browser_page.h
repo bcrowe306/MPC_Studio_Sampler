@@ -74,6 +74,7 @@ public:
         }));
 
         signalConnections.push_back(controlSurface->f6Button->onPressed.connect([this]() {
+            mpcSampler->browser->stopPreview(); // Stop previewing the current item
             auto selectedItem = mpcSampler->browser->getSelectedItem();
             auto track = mpcSampler->project->selectedTrack();
             if (selectedItem.is_regular_file() && selectedItem.path().extension() == ".wav") {

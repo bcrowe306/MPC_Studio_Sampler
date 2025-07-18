@@ -60,6 +60,7 @@ public:
     shared_ptr<Sequencer> sequencer; // Sequencer for the project
 
 
+
     // Project parameters
     VRString projectName = VRString("projectName", "Untitled Project", undoManager); // Parameter for project name
     ValueOptionsReceiver<string> displayPage = ValueOptionsReceiver<string>( "displayPage", kDisplayPageNames[0], kDisplayPageNames, kDisplayPageNames); // Parameter for the current display page
@@ -91,6 +92,7 @@ public:
         audioContext->connect(audioContext->destinationNode(), masterTrack->output, 0, 0); 
         audioContext->connect(audioContext->destinationNode(), cueTrack->output, 0, 0); 
         audioContext->connect(cueTrack->input, metronomeNode->clickGainNode, 0, 0); // Connect metronome output to audio context destination
+
         audioContext->synchronizeConnections(); // Synchronize connections after setup
 
         
@@ -176,6 +178,16 @@ public:
             }
         }
         playhead->stop(); // Stop the playhead
+        sendStopSignalToAllTracks();
+        onIsPlaying(false); // Emit signal that playback has stopped
+    }
+    void sendStopSignalToAllTracks() {
+        for (auto &track : _tracks) {
+            if (track->getDevice()) {
+                track->getDevice()->stopAllNotes(); // Stop all notes in the track
+            }
+        }
+        playhead->stop(); // Stop the playhead
         onIsPlaying(false); // Emit signal that playback has stopped
     }
 
@@ -206,6 +218,7 @@ public:
             if (undoManager->isBatching()) {
                 undoManager->endBatch();
             }
+            sendStopSignalToAllTracks(); // Stop all tracks
             onIsPlaying(false);
         }
     }

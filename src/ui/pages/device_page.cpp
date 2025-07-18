@@ -40,6 +40,7 @@ void DevicePage::createWidgets(){
       this->add_child(parameterWidget);
       parameterWidgets.push_back(parameterWidget);
     }
+
     outputWidget = make_shared<ButtonWidget>(60 * 5 + 4, 68, 54, 13,  "Main", false, 11);
     meterWidget = make_shared<MeterWidget>(333, 13, 27, 39, .5, 0.9f, 0.7f);
     soloButtonWidget = make_shared<ButtonWidget>(303, 40, 15, 14, "s", false, 10);
@@ -80,6 +81,28 @@ void DevicePage::onSequenceSelected(int sequenceIndex) {
     }
     sequenceConnections.clear();
     headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
+}
+
+void DevicePage::onQlinkControlsAdjusted(int index, int offset) {
+    auto track = mpcSampler->project->selectedTrack();
+    auto device = track->getDevice();
+    if (!device) {
+        return;
+    }
+
+    auto params = device->parameters;
+    int paramIndex = index + (parameterBank * 4);
+    if (paramIndex < 0 || paramIndex >= params.size()) {
+        std::cerr << "Invalid parameter index: " << paramIndex << std::endl;
+        return;
+    }
+
+    // Adjust the parameter value based on the offset
+    if(offset > 0) {
+        params[paramIndex]->incrementValue(true);
+    } else if(offset < 0) {
+        params[paramIndex]->decrementValue(true);
+    }
 }
 
 void DevicePage::onTrackSelected(int trackIndex) {
@@ -170,21 +193,14 @@ void DevicePage::onActivated() {
     }));
 
 
-
     addConnection(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
         headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
     }));
     headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
 
-    addConnection(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
-        if(offset > 0) {
-            mpcSampler->project->metronomeVolumeDb.incrementValue(true);
-        } else if(offset < 0) {
-            mpcSampler->project->metronomeVolumeDb.decrementValue(true);
-        }
+    addConnection(controlSurface->qlinkEncoders->onOffset.connect([this](int index, int offset) {
+        onQlinkControlsAdjusted(index, offset);
     }));
-
-
     
 }
 

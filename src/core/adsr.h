@@ -10,6 +10,10 @@ enum envState { env_idle = 0, env_attack, env_decay, env_sustain, env_release };
 
 class ADSR {
 public:
+  enum class ADSRMode {
+    ONESHOT, // One-shot mode
+    ADSR     // ADSR mode
+  };
   std::shared_ptr<lab::AudioContext> audioContext; // Audio context for the ADSR
   std::shared_ptr<lab::FunctionNode> functionNode; // Function node for processing
 
@@ -27,16 +31,18 @@ public:
   void setSustainLevel(float level);
   void setTargetRatioA(float targetRatio);
   void setTargetRatioDR(float targetRatio);
+  void setMode(ADSRMode mode);
+  ADSRMode getMode() const { return mode; } // Get the current ADSR mode
   void setAll(float attackSeconds, float decaySeconds, float sustainLevel, float releaseSeconds);
 
-      // Set attack, decay, and release times in seconds
-      void
-      setAttackTimeSeconds(float seconds);
+  // Set attack, decay, and release times in seconds
+  void setAttackTimeSeconds(float seconds);
   void setDecayTimeSeconds(float seconds);
   void setReleaseTimeSeconds(float seconds);
-  void reset(void);
+  void resetEnvelope();
 
 protected:
+  ADSRMode mode = ADSRMode::ADSR; // ADSR mode (One Shot or ADSR)
   int state;
   float sampleRate;
   float output;
@@ -60,13 +66,21 @@ inline float ADSR::process() {
   switch (state) {
   case env_idle:
     break;
+
   case env_attack:
     output = attackBase + output * attackCoef;
     if (output >= 1.0) {
       output = 1.0;
-      state = env_decay;
+
+      // Transition to decay or sustain state based on mode
+      if(mode == ADSRMode::ADSR) {
+        state = env_decay; // Transition to decay state
+      } else {
+        state = env_sustain; // Transition to sustain state
+      }
     }
     break;
+
   case env_decay:
     output = decayBase + output * decayCoef;
     if (output <= sustainLevel) {
@@ -74,9 +88,16 @@ inline float ADSR::process() {
       state = env_sustain;
     }
     break;
+
   case env_sustain:
     break;
+
   case env_release:
+    if(mode == ADSRMode::ONESHOT) {
+      state = env_idle; // Transition to idle state if in one-shot mode
+      break;
+    }
+    
     output = releaseBase + output * releaseCoef;
     if (output <= 0.0) {
       output = 0.0;
@@ -113,7 +134,7 @@ inline void ADSR::gate(int gate) {
 
 inline int ADSR::getState() { return state; }
 
-inline void ADSR::reset() {
+inline void ADSR::resetEnvelope() {
   state = env_idle;
   output = 0.0;
 }

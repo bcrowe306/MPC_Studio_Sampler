@@ -5,16 +5,54 @@
 #include <concepts>
 #include <cstddef>
 #include <string>
+class ValueReceiverBase{
+public:
+    ValueReceiverBase(std::string name) : _name(name) {
+        _displayName = name; // Set the display name to the same as the name by default
+    }
+    virtual ~ValueReceiverBase() = default;
+    virtual void serialize(YAML::Emitter &out) = 0;
+    virtual void deserialize(YAML::Node &yaml) = 0;
+    virtual void incrementValue(bool isCoarse) = 0;
+    virtual void decrementValue(bool isCoarse) = 0;
+    virtual std::string getName() const {
+        return _name;
+    };
+    virtual void setName(const std::string &name) {
+        _name = name;
+    };
+    virtual uuids::uuid getId() const {
+        return _id;
+    };
+    virtual void setId(const uuids::uuid &id) {
+        _id = id;
+    };
+    virtual std::string getDisplayName() const {
+        return _displayName;
+    };
+    virtual void setDisplayName(const std::string &displayName) {
+        _displayName = displayName;
+    };
+
+protected:
+    uuids::uuid _id = generateUUID();
+    std::string _name = "";
+    std::string _displayName = ""; 
+};
+
+
+// Template class for value receivers that can handle different types of values
 
 template <typename T>
 class ValueReceiver : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<T>> {
+                      public enable_shared_from_this<ValueReceiver<T>>,
+                      public ValueReceiverBase {
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
   ValueReceiver(string name, T initialValue,
                 shared_ptr<UndoManager> undoManager = nullptr)
-      : _value(initialValue), undoManager_(undoManager) {
+      : _value(initialValue), undoManager_(undoManager), ValueReceiverBase(name) {
     _name = name;
   }
 
@@ -53,11 +91,11 @@ public:
 
   T getValue() const { return any_cast<T>(_value); }
 
-  void incrementValue(bool isCoarse) {
+  void incrementValue(bool isCoarse) override {
     
   }
 
-  void decrementValue(bool isCoarse) {
+  void decrementValue(bool isCoarse) override {
    
   }
 
@@ -70,7 +108,7 @@ public:
       throw std::runtime_error("Invalid type for ValueReceiver");
     }
   }
-  virtual void serialize(YAML::Emitter &out) {
+  virtual void serialize(YAML::Emitter &out) override {
     out << YAML::Key << _name;
     out << YAML::Value;
 
@@ -83,7 +121,7 @@ public:
     out << YAML::Value << this->_value;
   };
 
-  virtual void deserialize(YAML::Node &yaml) {
+  virtual void deserialize(YAML::Node &yaml) override {
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);
@@ -123,11 +161,12 @@ protected:
 // This specialization is needed because bool is not a numeric type and has different behavior
 template <>
 class ValueReceiver<bool> : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<bool>> {
+                      public enable_shared_from_this<ValueReceiver<bool>>,
+                      public ValueReceiverBase {
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<bool> onValueChanged;
-  ValueReceiver(string name, bool initialValue, shared_ptr<UndoManager> undoManager = nullptr) : undoManager_(undoManager) 
+  ValueReceiver(string name, bool initialValue, shared_ptr<UndoManager> undoManager = nullptr) : undoManager_(undoManager) , ValueReceiverBase(name) 
   {
     _value.store(initialValue, memory_order_relaxed); // Use atomic for thread safety
     _name = name;
@@ -161,13 +200,13 @@ public:
 
   bool getValue() const { return any_cast<bool>(_value.load(memory_order_relaxed)); }
 
-  void incrementValue(bool isCoarse) {
+  void incrementValue(bool isCoarse) override {
     // For boolean values, incrementing or decrementing doesn't make sense,
     // but we can toggle the value instead.
     setValue(!_value.load(memory_order_relaxed));
   }
 
-  void decrementValue(bool isCoarse) {
+  void decrementValue(bool isCoarse) override {
     // For boolean values, decrementing or incrementing doesn't make sense,
     // but we can toggle the value instead.
     setValue(!_value.load(memory_order_relaxed));
@@ -182,7 +221,7 @@ public:
       throw std::runtime_error("Invalid type for ValueReceiver");
     }
   }
-  virtual void serialize(YAML::Emitter &out) {
+  virtual void serialize(YAML::Emitter &out) override {
     out << YAML::Key << _name;
     out << YAML::Value;
 
@@ -195,7 +234,7 @@ public:
     out << YAML::Value << this->_value.load(memory_order_relaxed);
   };
 
-  virtual void deserialize(YAML::Node &yaml) {
+  virtual void deserialize(YAML::Node &yaml) override {
     if (yaml.IsScalar()) {
       _value.store(yaml.as<bool>(), memory_order_relaxed);
       onValueChanged(_value.load(memory_order_relaxed));
@@ -214,13 +253,6 @@ public:
     }
   };
 
-  void printSerialization() {
-    YAML::Emitter out;
-    out << YAML::BeginDoc;
-    out << YAML::BeginMap;
-    this->serialize(out);
-    std::cout << out.c_str() << std::endl;
-  }
 
 protected:
   uuids::uuid _id = generateUUID();
@@ -236,7 +268,8 @@ concept Numeric = std::is_arithmetic_v<T>;
 
 template <Numeric T>
 class ValueReceiver<T> : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<T>> {
+                      public enable_shared_from_this<ValueReceiver<T>>,
+                      public ValueReceiverBase {
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
@@ -244,10 +277,11 @@ public:
     string name, T initialValue,
     T min,
     T max,
-    T coarseStep = 0.01,
-    T fineStep = 0.001,
+    T coarseStep,
+    T fineStep,
     shared_ptr<UndoManager> undoManager = nullptr)
-      : _value(initialValue), _min(min), _max(max), _coarseStep(coarseStep), _fineStep(fineStep), undoManager_(undoManager) {
+      : _value(initialValue), _min(min), _max(max), _coarseStep(coarseStep), _fineStep(fineStep), undoManager_(undoManager), ValueReceiverBase(name) 
+  {
     _name = name;
   }
 
@@ -259,7 +293,19 @@ public:
   void setValue(T newValue) {
     if (_value != newValue) {
       // Clamp the new value to the min and max range
-      newValue = std::clamp(newValue, _min, _max);
+
+
+      // No Clamp
+      if(_min > _max){
+        // New value is assumed to be a valid value
+      }
+      else if(_max == 0){
+        newValue = std::max(newValue, _min); // Only clamp to min if max is 0
+      }
+      else {
+        newValue = std::clamp(newValue, _min, _max); // Clamp to both min and max
+      }
+
       if (undoManager_) {
         // Create a command to undo the change
         auto command = std::make_shared<Command>(
@@ -289,7 +335,7 @@ public:
     }
   }
 
-  void incrementValue(bool isCoarse) {
+  void incrementValue(bool isCoarse) override {
     T step = isCoarse ? _coarseStep : _fineStep;
     T newValue = _value + step;
     if (newValue > _max) {
@@ -300,7 +346,7 @@ public:
     setValue(newValue);
   }
 
-  void decrementValue(bool isCoarse) {
+  void decrementValue(bool isCoarse) override {
     T step = isCoarse ? _coarseStep : _fineStep;
     T newValue = _value - step;
     if (newValue > _max) {
@@ -311,7 +357,23 @@ public:
     setValue(newValue);
   }
 
-  virtual void serialize(YAML::Emitter &out) {
+  void setMin(T min) {
+    _min = min;
+    if (_value < _min) {
+      _value = _min; // Clamp the current value to the new min
+      onValueChanged(_value);
+    }
+  }
+
+  void setMax(T max) {
+    _max = max;
+    if (_value > _max) {
+      _value = _max; // Clamp the current value to the new max
+      onValueChanged(_value);
+    }
+  }
+
+  virtual void serialize(YAML::Emitter &out) override {
     out << YAML::Key << _name;
     out << YAML::Value;
 
@@ -336,7 +398,7 @@ public:
     out << YAML::Value << this->_value;
   };
 
-  virtual void deserialize(YAML::Node &yaml) {
+  void deserialize(YAML::Node &yaml) override {
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);
@@ -367,14 +429,6 @@ public:
     }
   };
 
-  void printSerialization() {
-    YAML::Emitter out;
-    out << YAML::BeginDoc;
-    out << YAML::BeginMap;
-    this->serialize(out);
-    std::cout << out.c_str() << std::endl;
-  }
-
 protected:
   T _min;
   T _max;
@@ -388,7 +442,8 @@ protected:
 
 template <typename T>
 class ValueOptionsReceiver : public IReceiver,
-                      public enable_shared_from_this<ValueOptionsReceiver<T>> {
+                      public enable_shared_from_this<ValueOptionsReceiver<T>>,
+                      public ValueReceiverBase {
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
@@ -398,7 +453,8 @@ public:
     vector<T> options,
     vector<string> optionNames,
     shared_ptr<UndoManager> undoManager = nullptr)
-      : _value(initialValue), _options(options), _optionNames(optionNames), undoManager_(undoManager) {
+      : _value(initialValue), _options(options), _optionNames(optionNames), undoManager_(undoManager), ValueReceiverBase(name) 
+  {
     _name = name;
   }
 
@@ -444,7 +500,7 @@ public:
     return -1; // Not found
   }
 
-  void incrementValue(bool isCoarse) {
+  void incrementValue(bool isCoarse) override {
     size_t currentIndex = getSelectedOptionIndex();
     if (currentIndex == -1) return; // Value not found in options
 
@@ -452,7 +508,7 @@ public:
     setValue(_options[nextIndex]);
   }
 
-  void decrementValue(bool isCoarse) {
+  void decrementValue(bool isCoarse) override {
     size_t currentIndex = getSelectedOptionIndex();
     if (currentIndex == -1) return; // Value not found in options
 
@@ -475,8 +531,7 @@ public:
     }
   }
 
-  
-  virtual void serialize(YAML::Emitter &out) {
+  virtual void serialize(YAML::Emitter &out) override {
     out << YAML::Key << _name;
     out << YAML::Value;
 
@@ -503,7 +558,7 @@ public:
     out << YAML::EndSeq;
   };
 
-  virtual void deserialize(YAML::Node &yaml) {
+  virtual void deserialize(YAML::Node &yaml) override {
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);
@@ -534,14 +589,6 @@ public:
     }
   };
 
-  void printSerialization() {
-    YAML::Emitter out;
-    out << YAML::BeginDoc;
-    out << YAML::BeginMap;
-    this->serialize(out);
-    std::cout << out.c_str() << std::endl;
-  }
-
 protected:
   uuids::uuid _id = generateUUID();
   vector<T> _options; // List of options for the receiver
@@ -550,6 +597,7 @@ protected:
   T _value;
   shared_ptr<UndoManager> undoManager_;
 };
+
 
 class VRFloatDB : public ValueReceiver<float> {
 public:
@@ -560,5 +608,10 @@ public:
 typedef ValueReceiver<std::string> VRString;
 typedef ValueReceiver<bool> VRBool;
 typedef ValueReceiver<float> VRFloat;
+typedef ValueReceiver<double> VRDouble;
 typedef ValueReceiver<int> VRInt;
+typedef ValueOptionsReceiver<std::string> VRStringOptions;
+typedef ValueOptionsReceiver<int> VRIntOptions;
+typedef ValueOptionsReceiver<float> VRFloatOptions;
+typedef ValueOptionsReceiver<double> VRDoubleOptions;
 

@@ -30,7 +30,7 @@ public:
     shared_ptr<AnalyserNode> input;
     shared_ptr<AnalyserNode> output;
     shared_ptr<AudioContext> context;
-    shared_ptr<PolySampler> trackDevice;
+    shared_ptr<PolySampler> device;
 
     sigslot::signal<bool> onIsEmpty; // Signal emitted when the track is empty or not
     sigslot::signal<> onSamplerDeviceChanged; // Signal emitted when the sampler device is changed
@@ -75,10 +75,10 @@ public:
         
     }
 
-    void setSamplerDevice(shared_ptr<PolySampler> device) {
-        trackDevice = device;
-        if (trackDevice) {
-            context->connect(input, trackDevice->output, 0, 0);
+    void setSamplerDevice(shared_ptr<PolySampler> newDevice) {
+        device = newDevice;
+        if (device) {
+            context->connect(input, device->output, 0, 0);
             context->synchronizeConnections();
             _isEmpty = false; // Track is no longer empty after creating a sampler device
             onIsEmpty(false); 
@@ -86,9 +86,9 @@ public:
     }
     
     void createSamplerDevice(const std::string& filePath) {
-        trackDevice = make_shared<PolySampler>(context);
-        trackDevice->filePath.setValue(filePath); // Set the file path for the sampler device
-        context->connect(input, trackDevice->output, 0, 0);
+        device = make_shared<PolySampler>(context);
+        device->filePath->setValue(filePath); // Set the file path for the sampler device
+        context->connect(input, device->output, 0, 0);
         context->synchronizeConnections();
         onSamplerDeviceChanged();
         _isEmpty = false; // Track is no longer empty after creating a sampler device
@@ -105,8 +105,8 @@ public:
 
     void midiInput(choc::midi::ShortMessage &msg) {
         
-        if (trackDevice) {
-            trackDevice->midiInput(msg); // Forward MIDI input to the sampler device
+        if (device) {
+            device->midiInput(msg); // Forward MIDI input to the sampler device
         }
     }
 private:
@@ -159,7 +159,7 @@ class Track {
     ~Track() = default;
 
     bool isTrackEmpty() {
-        return trackNode->trackDevice == nullptr; // Check if the track has a sampler device
+        return trackNode->device == nullptr; // Check if the track has a sampler device
     }
     void createSamplerDevice(const std::string& filePath) {
         trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
@@ -167,25 +167,27 @@ class Track {
     }
 
     void loadSample(const std::string& filePath) {
-        if (!trackNode->trackDevice) {
+        if (!trackNode->device) {
             trackNode->createSamplerDevice(filePath); // Create a new sampler device if it doesn't exist
         } else {
-            trackNode->trackDevice->filePath.setValue(filePath); // Load the sample into the existing sampler device
+            trackNode->device->filePath->setValue(filePath); // Load the sample into the existing sampler device
         }
         onDeviceUpdate(); // Emit signal that the device has been updated
     }
+
     void midiPlayback(choc::midi::ShortMessage &msg) {
         trackNode->midiInput(msg);
     }
+
     void midiInput(choc::midi::ShortMessage &msg) {
         trackNode->midiInput(msg); // Forward MIDI input to the track node
         midiOutput(_trackIndex, msg); // Emit MIDI output signal for the track to whoever is listening, ie sequencer
     }
 
     vector<float> * getWaveformData() {
-        if (trackNode->trackDevice) {
-            trackNode->trackDevice->generateWaveformData(); // Generate waveform data from the sampler device
-            return &trackNode->trackDevice->_waveformData; // Return the waveform data
+        if (trackNode->device) {
+            trackNode->device->generateWaveformData(); // Generate waveform data from the sampler device
+            return &trackNode->device->_waveformData; // Return the waveform data
         }
         return nullptr; // Return nullptr if no sampler device is present
     }
@@ -237,12 +239,16 @@ class Track {
     }
 
     string getDeviceTypeName(){
-        if (trackNode->trackDevice) {
+        if (trackNode->device) {
             return "Sampler";
         }
         return "Empty";
     }
 
+    shared_ptr<DeviceBase> getDevice() {
+        return trackNode->device; // Return the device associated with the track
+    }
+    
     void setTrackIndex(int index) {
         _trackIndex = index; // Set the track index
     }
@@ -254,5 +260,4 @@ class Track {
 protected:
     int _trackIndex;
     shared_ptr<TrackNode> trackNode; // Node representing the track in the audio context
-    shared_ptr<SamplerDevice> samplerDevice; // Device associated with the track, if any
 };
