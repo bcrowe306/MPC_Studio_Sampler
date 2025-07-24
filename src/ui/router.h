@@ -13,6 +13,10 @@ typedef shared_ptr<unordered_map<string, shared_ptr<PageWidget>>>
 
 class Router {
 public:
+    // Signal emitted when the page changes
+    sigslot::signal<> beforePageChanged; // Signal emitted before the page changes
+    sigslot::signal<> afterPageChanged;  // Signal emitted after the page changes
+    sigslot::signal<string> onPageChanged; // Signal emitted when the page changes
     sigslot::signal<> onFrame;
     Router();
 
@@ -21,8 +25,18 @@ public:
     void add_page(const string &name, shared_ptr<PageWidget> page);
     PageCollection get_pages();
     shared_ptr<PageWidget> get_page(const string &name);
+    std::string currentPage() const {
+        return _current_page;
+    }
     void showPage(const string &pageName);
     void printCurrentPage();
+    void deactivateAll(){
+        for (auto &[name, page] : *_pages) {
+            if (page) {
+                page->deactivate();
+            }
+        }
+    }
 
 protected:
 

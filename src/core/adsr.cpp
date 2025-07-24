@@ -7,6 +7,8 @@
 
   ADSR::ADSR(std::shared_ptr<lab::AudioContext> audioContext)  : audioContext(audioContext) 
   {
+
+    sampleRate = audioContext->sampleRate();
     functionNode = std::make_shared<lab::FunctionNode>(*audioContext.get());
     functionNode->start(0.0);
     functionNode->setFunction([this](lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
@@ -20,7 +22,7 @@
     setSustainLevel(1.f);
     setTargetRatioA(0.3);
     setTargetRatioDR(0.0001);
-    sampleRate = audioContext->sampleRate();
+    setRetriggerRate(sampleRate * 0.01); // Set default retrigger rate to 10 ms
   }
 
   ADSR::~ADSR() {
@@ -54,6 +56,13 @@ void ADSR::setReleaseRate(float rate) {
   releaseRate = rate;
   releaseCoef = calcCoef(rate, targetRatioDR);
   releaseBase = -targetRatioDR * (1.f - releaseCoef);
+}
+
+void ADSR::setRetriggerRate(float rate) {
+  retriggerRate = rate;
+  retriggerCoef = calcCoef(rate, targetRatioDR);
+  retriggerBase = -targetRatioDR * (1.f - retriggerCoef);
+ 
 }
 
 float ADSR::calcCoef(float rate, float targetRatio) {

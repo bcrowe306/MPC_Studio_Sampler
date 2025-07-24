@@ -19,27 +19,27 @@ using lab::AudioContext;
 class DeviceBase {
     public:
         
-        DeviceBase(shared_ptr<AudioContext> audioContext)
-            : _audioContext(audioContext) 
-        {
-               output = make_shared<lab::AnalyserNode>(*_audioContext.get()); // Initialize output with AnalyserNode
-        }
+        DeviceBase(shared_ptr<AudioContext> audioContext) : _audioContext(audioContext) 
+        { output = make_shared<lab::AnalyserNode>(*_audioContext.get());  }
         virtual ~DeviceBase() = default;
-        sigslot::signal<> onDeviceChanged; // Signal emitted when the device changes
-        std::shared_ptr<lab::AnalyserNode> output; // Power monitor for device
-        vector<shared_ptr<ValueReceiverBase>> parameters; // List of parameters for the device
+        
+        // Signal emitted when the device changes
+        sigslot::signal<> onDeviceChanged; 
+        
+        // Power monitor for device
+        std::shared_ptr<lab::AnalyserNode> output; 
+        
+        // List of parameters for the device
+        vector<shared_ptr<ValueReceiverBase>> parameters; 
+
+        const std::string &getName() const { return _name; }
+        DeviceType getType() const { return _type; }
+        
         virtual void serialize() = 0;
         virtual void deserialize() = 0;
-        const std::string &getName() const {
-            return _name;
-        };
         virtual void midiInput(choc::midi::ShortMessage &msg) = 0;
-        virtual void stopAllNotes() {
-            
-        }
-        virtual void changeParameterValue(int index, int offset, bool isFine){
-
-        }
+        virtual void stopAllNotes() {}
+        
 
     protected:
         shared_ptr<AudioContext> _audioContext; // Audio context for the device

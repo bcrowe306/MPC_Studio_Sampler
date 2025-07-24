@@ -13,8 +13,8 @@
 class ParameterWidget : public Widget {
 public:
     ParameterWidget(unsigned int x, unsigned int y, unsigned int width, unsigned int height,
-                    float value, string label, float min, float max, bool is_centered = false, bool selected = false, float thickness = 4, string formatString = "{:.0f}%")
-        : Widget(x, y, width, height), _value(value), _label(label), _formatString(formatString)
+                    float value, string label, float min, float max, bool is_centered = false, bool selected = false, float thickness = 4)
+        : Widget(x, y, width, height), _value(value), _label(label)
     {
         _min = min;
         _max = max;
@@ -26,13 +26,20 @@ public:
     void setValue(float value, float min = 0.0f, float max = 1.0f) {
         if(value != _value) {
             _value = std::clamp(value, min, max);
-            _displayValue = std::to_string(static_cast<int>(value * 100)) + "%";
             render();
         }
     }
     void setName(string name) {
         if(name == _label) return; // Avoid unnecessary updates
         _label = name;
+        render();
+    }
+
+    void setAll(float value, string label, string displayValue){
+        if(value == _value && label == _label && displayValue == _displayValue) return; // Avoid unnecessary updates
+        _value = value;
+        _label = label;
+        _displayValue = displayValue;
         render();
     }
 
@@ -57,8 +64,7 @@ public:
         cairo_draw_knob(cr, center_x,  11, knobSize, _value, _min, _max, _is_centered, _thickness);
 
         // Format the display value using the conversion function
-        auto formater = fmt::format(fmt::runtime(_formatString), valueConversionFunction(_value) * 100);
-        cairo_draw_aligned_text(cr, formater, 0,  27, width, "center");
+        cairo_draw_aligned_text(cr, _displayValue, 0,  27, width, "center");
         // cairo_clip_extents(cr, &x1, &y1, &x2, &y2);
     }
 
@@ -73,7 +79,6 @@ protected:
     float _max = 1.0f;
     bool _is_centered = true;
     float _thickness = 4.0f;
-    string _formatString = "{:.0f}%"; // Default format string for display value
     std::function<float(float)> valueConversionFunction = [](float value) {
         return value; // Default conversion function, can be overridden
     };

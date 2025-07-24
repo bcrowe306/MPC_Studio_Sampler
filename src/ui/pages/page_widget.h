@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "core/project.h"
 
 using std::shared_ptr;
 
@@ -17,12 +18,13 @@ class PageWidget : public Widget {
 public:
     std::string _title;
     shared_ptr<MPCSampler> mpcSampler;
+    shared_ptr<MPCStudioBlackControlSurface> controlSurface;
+    shared_ptr<Project> project; // Project associated with the page
     shared_ptr<Router> router;
     std::vector<shared_ptr<FunctionButtonWidget>> functionWidgets;
     std::vector<sigslot::connection> signalConnections;
     vector<sigslot::connection> trackConnections;
     vector<sigslot::connection> sequenceConnections;
-    shared_ptr<MPCStudioBlackControlSurface> controlSurface;
     sigslot::signal<> deactivatedSignal; // Signal emitted when the page is deactivated
     PageWidget(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsigned int y, unsigned int width, unsigned int height);
     virtual ~PageWidget() = default;

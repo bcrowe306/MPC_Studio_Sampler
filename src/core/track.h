@@ -2,6 +2,7 @@
 #include "LabSound/LabSound.h"
 #include "LabSound/core/AudioContext.h"
 #include "core/devices/device_base.h"
+#include "core/devices/device_types.h"
 #include "core/devices/sampler_device.h"
 #include "core/devices/poly_sampler.h"
 #include "meter_node.h"
@@ -33,7 +34,6 @@ public:
     shared_ptr<PolySampler> device;
 
     sigslot::signal<bool> onIsEmpty; // Signal emitted when the track is empty or not
-    sigslot::signal<> onSamplerDeviceChanged; // Signal emitted when the sampler device is changed
 
     // Parameters for the track
     uuids::uuid id;
@@ -90,7 +90,6 @@ public:
         device->filePath->setValue(filePath); // Set the file path for the sampler device
         context->connect(input, device->output, 0, 0);
         context->synchronizeConnections();
-        onSamplerDeviceChanged();
         _isEmpty = false; // Track is no longer empty after creating a sampler device
         onIsEmpty(false); // Emit signal that the track is not empty
     }
@@ -124,7 +123,7 @@ class Track {
     shared_ptr<VRBool> solo;    // Track solo state
 
     sigslot::signal<float, float> onLevelMetersChanged;
-    sigslot::signal<> onDeviceUpdate; // Signal emitted when the sampler device is changed
+    sigslot::signal<> onTrackDeviceUpdated; // Signal emitted when the sampler device is changed
     sigslot::signal<int, choc::midi::ShortMessage&> midiOutput;
 
     // Constructor for Track
@@ -161,18 +160,53 @@ class Track {
     bool isTrackEmpty() {
         return trackNode->device == nullptr; // Check if the track has a sampler device
     }
-    void createSamplerDevice(const std::string& filePath) {
-        trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
-        onDeviceUpdate(); // Emit signal that the device has been updated
+
+    //  Args ...
+    template <typename... Args>
+    void createDevice(DeviceType type, Args... args) {
+        if(trackNode->device) {
+            trackNode->device->onDeviceChanged.disconnect_all(); // Disconnect any existing device change signals
+        } 
+        switch(type) {
+            case DeviceType::Sampler: {
+                auto filePath = std::get<std::string>(std::make_tuple(args...));
+                createSamplerDevice(filePath); // Create a sampler device with the provided file path
+                break;
+            }
+            case DeviceType::Synthesizer:
+                // Implement synthesizer creation logic here
+                break;
+            case DeviceType::Undefined:
+                // Handle undefined device type
+                break;
+            default:
+                throw std::runtime_error("Unsupported device type");
+        }
     }
 
-    void loadSample(const std::string& filePath) {
+    void createSamplerDevice(const std::string& filePath) {
+        
+        trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
+        trackNode->device->onDeviceChanged.connect([this]() {
+            onTrackDeviceUpdated();
+        }); // Connect to the device changed signal
+        onTrackDeviceUpdated(); // Emit signal that the device has been updated
+    }
+
+    bool loadSample(const std::string& filePath) {
         if (!trackNode->device) {
-            trackNode->createSamplerDevice(filePath); // Create a new sampler device if it doesn't exist
-        } else {
-            trackNode->device->filePath->setValue(filePath); // Load the sample into the existing sampler device
+            createDevice(DeviceType::Sampler, filePath);
+            onTrackDeviceUpdated();
+            return true;
+        } 
+        else {
+            if(trackNode->device->getType() == DeviceType::Sampler) {
+                trackNode->device->filePath->setValue(filePath); // Load the sample into the existing sampler device
+                onTrackDeviceUpdated(); // Emit signal that the device has been updated
+                return true;
+            }
         }
-        onDeviceUpdate(); // Emit signal that the device has been updated
+        return false;
     }
 
     void midiPlayback(choc::midi::ShortMessage &msg) {

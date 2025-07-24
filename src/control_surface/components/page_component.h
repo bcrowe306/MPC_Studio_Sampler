@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "ui/router.h"
 
 
 class PageComponent : public Component {
@@ -20,39 +21,39 @@ public:
 
     void onActivateComponent() override {
         controlConnections.push_back(
-            mpcSampler->project->displayPage.onValueChanged.connect(
+            controlSurface->router->onPageChanged.connect(
                 [this](std::string pageName) { onPageChanged(pageName); }));
 
         controlConnections.push_back(
             controlSurface->progEditButton->onPressed.connect(
-                [this]() { mpcSampler->project->displayPage = "devicePage"; }));
+                [this]() { controlSurface->router->push("devicePage"); }));
 
         controlConnections.push_back(
             controlSurface->progMixButton->onPressed.connect(
-                [this]() { mpcSampler->project->displayPage = "mixerPage"; }));
+                [this]() { controlSurface->router->push("mixerPage"); }));
 
         controlConnections.push_back(
             controlSurface->seqEditButton->onPressed.connect([this]() {
-              mpcSampler->project->displayPage = "sequencePage";
+              controlSurface->router->push("sequencePage");
             }));
 
         controlConnections.push_back(
             controlSurface->sampleEditButton->onPressed.connect([this]() {
-              mpcSampler->project->displayPage = "performPage";
+              controlSurface->router->push("performPage");
             }));
 
         controlConnections.push_back(
             controlSurface->songButton->onPressed.connect([this]() {
-              mpcSampler->project->displayPage = "arrangerPage";
+              controlSurface->router->push("arrangerPage");
             }));
 
         controlConnections.push_back(
             controlSurface->browserButton->onPressed.connect([this]() {
-              mpcSampler->project->displayPage = "browserPage";
+              controlSurface->router->push("browserPage");
             }));
 
         controlConnections.push_back(controlSurface->mainButton->onPressed.connect([this]() {
-              mpcSampler->project->displayPage = "projectPage";
+              controlSurface->router->push("projectPage");
         }));
 
         // Run the listener functions once to setup the initial state
@@ -65,9 +66,7 @@ public:
 
     void onPageChanged(const std::string &pName) {
 
-        std::string pageName = pName.empty() ? mpcSampler->project->displayPage.getValue() : pName;
-
-        std::cout << "Page changed to: " << pageName << "\n";
+        std::string pageName = pName.empty() ? controlSurface->router->currentPage() : pName;
 
         if (pageName == "devicePage") {
             controlSurface->progEditButton->sendColor(TwoColorButtonControl::Colors::COLOR1);

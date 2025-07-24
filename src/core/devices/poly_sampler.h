@@ -73,7 +73,6 @@ struct PolyVoice {
         pitchEnvelopeNode = std::make_shared<ADSR>(audioContext);
         
         samplerNode = std::make_shared<BufferPlayer>(audioContext);
-
         audioContext->connect(sampleGainNode, samplerNode->outputNode, 0, 0); // Connect the sampler node to the sample gain node
         audioContext->connect(velocityAttenuationNode, sampleGainNode, 0, 0); // Connect the sampler node to the sample gain node
         audioContext->connectParam(amplitudeAttenuationNode->gain(), amplitudeEnvelopeNode->functionNode, 0); // Connect the amplitude envelope to the sampler node
@@ -83,6 +82,7 @@ struct PolyVoice {
 
         audioContext->synchronizeConnections();
         setInitialParameters(); // Set initial parameters for the voice
+        
     }
 
     void setInitialParameters() {
@@ -122,7 +122,7 @@ struct PolyVoice {
             samplerNode->setPlaybackRate(frequency, glideMs); // Set the playback rate to the new frequency with sliding effect
         }
         else{
-            samplerNode->setPlaybackRate(frequency);
+            samplerNode->setPlaybackRate(frequency, 5);
         }
         samplerNode->play(startSample, endSample); // Start the sampler node with the specified start and end samples
         velocityAttenuationNode->gain()->setValue(calculateVelocityAttenuation(velocity, velocitySensitivity));
@@ -132,14 +132,19 @@ struct PolyVoice {
     void stop() {
         samplerNode->stop();
     }
-    void gateEnvelopes(bool gate) {
-        amplitudeEnvelopeNode->gate(gate ? 1.0f : 0.0f);
-        filterEnvelopeNode->gate(gate ? 1.0f : 0.0f);
-        pitchEnvelopeNode->gate(gate ? 1.0f : 0.0f);
+    void gateEnvelopes(bool gate, bool retrigger = false) {
+        // filterEnvelopeNode->gate(gate ? 1.0f : 0.0f);
+        // pitchEnvelopeNode->gate(gate ? 1.0f : 0.0f);
         if(gate) {
             play(); // Start the sampler node
+            if(retrigger) {
+                amplitudeEnvelopeNode->setState(env_retrigger); // Set the envelope state to retrigger
+            } else {
+                amplitudeEnvelopeNode->gate(1.0f); // Gate the envelope to start
+            }
         } 
         else {
+            amplitudeEnvelopeNode->gate(0.0f);
         }
 
     }
@@ -188,25 +193,27 @@ struct VoiceAllocator {
         functionNode = make_shared<lab::FunctionNode>(*audioContext.get()); 
         functionNode->start(0.0);
         functionNode->setFunction([&voices](lab::ContextRenderLock & r, lab::FunctionNode * me, int channel, float * buffer, int bufferSize) {
-            for(auto &voice : voices) {
-                auto currentSamplePosition = voice.samplerNode->getPosition();
-                if(voice.isReleasing && voice.amplitudeEnvelopeNode->getState() == envState::env_idle) {
+            // for(auto &voice : voices) {
+                // auto currentSamplePosition = voice.samplerNode->getPosition();
+                // if(voice.isReleasing && voice.amplitudeEnvelopeNode->getState() == envState::env_idle) {
 
-                    if(voice.amplitudeEnvelopeNode->getMode() != ADSR::ADSRMode::ONESHOT) {
-                        voice.reset(); 
-                    }
+                //     if(voice.amplitudeEnvelopeNode->getMode() != ADSR::ADSRMode::ONESHOT) {
+                //         std::cout << "Voice is releasing, resetting voice" << std::endl;
+                //         voice.reset(); 
+                //     }
 
-                }
+                // }
 
-                // Reset the voice if it is releasing or sustained and the cursor exceeds the sample length
-                if(currentSamplePosition >= voice.samplerNode->getLength() && voice.isInUse() && !voice.samplerNode->isLooping()) {
-                    voice.reset(); // Stop the sampler node if cursor exceeds length
-                }
-                if(voice.samplerNode->hasEnded()){
-                    voice.reset(); // Reset the voice if the sampler node has ended
-                }
+                // // Reset the voice if it is releasing or sustained and the cursor exceeds the sample length
+                // if(currentSamplePosition >= voice.samplerNode->getLength() && voice.isInUse() && !voice.samplerNode->isLooping()) {
+                //     std::cout << "Resetting voice due to cursor exceeding sample length" << std::endl;
+                //     voice.reset(); // Stop the sampler node if cursor exceeds length
+                // }
+                // if(voice.samplerNode->hasEnded() && voice.isInUse()) {
+                //     voice.reset(); // Reset the voice if the sampler node has ended
+                // }
                 
-            }
+            // }
         });
         audioContext->connect(audioContext->destinationNode(), functionNode);
         audioContext->synchronizeConnections();
@@ -269,7 +276,6 @@ struct VoiceAllocator {
     }
 
     void setSustainPedal(int value) {
-        std::cout << "Sustain Pedal Value: " << value << std::endl; // Debug output --- IGNORE ---
         bool newState = value >= 64;
         bool oldState = sustainPedalPressed_;
 
@@ -331,20 +337,9 @@ struct VoiceAllocator {
         // Check if this note is already playing (for retriggering)
         int existingVoiceIndex = findVoiceForNote(note);
         if (existingVoiceIndex != -1) {
-            std::cout << "Retriggering existing voice for note: " << note << std::endl;
             // Retrigger existing voice
-            PolyVoice &existingVoice = voices[existingVoiceIndex];
-            existingVoice.stop();
-            int newVoiceIndex = findAvailableVoice();
-            if (newVoiceIndex == -1) {
-                std::cout << "No available voice, stealing voice for note: " << note << std::endl;
-                newVoiceIndex = findOldestVoice();
-                if (newVoiceIndex == -1) {
-                    std::cerr << "Retrigger: No voices available to steal for note: " << note << std::endl;
-                    return -1; // No voices available to steal
-                }
-            }
-            auto &voice = voices[newVoiceIndex];
+
+            auto &voice = voices[existingVoiceIndex];
             voice.note = note;
             voice.velocity = velocity;
             voice.triggerTime = std::chrono::steady_clock::now();
@@ -354,9 +349,10 @@ struct VoiceAllocator {
             voice.voiceId = generateVoiceId();
 
             // Trigger ADSR envelopes and start on the sampler node
+            // voice.resetEnvelopes(); // Reset envelopes to start fresh
             voice.gateEnvelopes(true);
 
-            return newVoiceIndex;
+            return existingVoiceIndex;
         }
 
         // Find available voice
@@ -375,8 +371,7 @@ struct VoiceAllocator {
 
         PolyVoice &voice = voices[voiceIndex];
         if(stolenVoice) {
-            std::cout << "Stealing Voice Index: " << voiceIndex << " for note: " << note << std::endl;
-            if(legato)
+            if(legato && voice.isActive)
                 voice.slideNote(note); // Slide to the new note if voice was stolen
             else
             {
@@ -394,7 +389,7 @@ struct VoiceAllocator {
         }
         else {
             // Allocate voice
-            std::cout << "Allocating Voice Index: " << voiceIndex  << " for note: " << note << std::endl;
+            // std::cout << "Allocating Voice Index: " << voiceIndex  << " for note: " << note << std::endl;
             voice.note = note;
             voice.velocity = velocity;
             voice.isActive = true;
@@ -419,7 +414,7 @@ struct VoiceAllocator {
         // Check if sustain pedal is pressed
         if (sustainPedalPressed_) {
             // Mark as sustained instead of releasing
-            std::cout << "Sustain pedal pressed, sustaining voice: " << voiceIndex << std::endl;
+            // std::cout << "Sustain pedal pressed, sustaining voice: " << voiceIndex << std::endl;
             voice.isActive = false;    // Key is no longer pressed
             voice.isSustained = true;  // But held by sustain pedal
             voice.isReleasing = false; // Not releasing, sustained
@@ -449,23 +444,25 @@ public:
     
     uuids::uuid id = generateUUID(); // Unique identifier for the poly sampler device
     vector<float> _waveformData; // Waveform data for the poly sampler
-    const int kMaxVoices = 32; // Maximum number of voices for polyphony
+    const int kMaxVoices = 16; // Maximum number of voices for polyphony
     vector<PolyVoice> _voices; // Voices for the poly sampler
     
     // Parameters for the poly sampler
-    shared_ptr<VRFloat> volumeDb = make_shared<VRFloat>("volumeDB", -6.0f, -60.0f, 12.0f, 1.0f, 0.1f); // Gain parameter for the poly sampler
-    shared_ptr<VRInt> startPosition = make_shared<VRInt>("startPosition", 0, 0, 0, 100, 2); // Start position for the sample
-    shared_ptr<VRInt> endPosition = make_shared<VRInt>("endPosition", 0, 0, 0, 100, 2); // End position for the sample
+    shared_ptr<VRFloatDB> volumeDb = make_shared<VRFloatDB>("volumeDB", -6.0f); // Gain parameter for the poly sampler
+    shared_ptr<VRInt> startPosition = make_shared<VRInt>("startPosition", 0, 0, 0, 1000, 100); // Start position for the sample
+    shared_ptr<VRInt> endPosition = make_shared<VRInt>("endPosition", 0, 0, 0, 1000, 100); // End position for the sample
     shared_ptr<VRBool> loop = make_shared<VRBool>("loop", false); // Looping mode for the poly sampler
-    shared_ptr<VRIntOptions> samplerMode = make_shared<VRIntOptions>("samplerMode", 1, std::vector<int>{0, 1}, std::vector<string>{"One Shot", "ADSR"}); // Sampler mode (One Shot or ADSR)
+    shared_ptr<VRIntOptions> samplerMode = make_shared<VRIntOptions>("samplerMode", 0, std::vector<int>{0, 1}, std::vector<string>{"One Shot", "ADSR"}); // Sampler mode (One Shot or ADSR)
     shared_ptr<VRInt> maxVoices = make_shared<VRInt>("maxVoices", 16, 1, kMaxVoices, 1, 1); // Number of voices to use in polyphony
     shared_ptr<VRBool> legato = make_shared<VRBool>("legato", true); // Legato mode for the poly sampler
     shared_ptr<VRDouble> glideMs = make_shared<VRDouble>("glide", 5.0, 1.0, 1000.0, 1.0, 1.0); // Glide time for the poly sampler
     shared_ptr<VRString> filePath = make_shared<VRString>("filePath", ""); // File path for the sample
-    shared_ptr<VRFloat> attack = make_shared<VRFloat>("attack", 0.01f, 0.001f, 20.0f, 0.001f, 0.001f); // Attack time for the amplitude envelope
-    shared_ptr<VRFloat> decay = make_shared<VRFloat>("decay", 0.1f, 0.001f, 20.0f, 0.001f, 0.001f); // Decay time for the amplitude envelope
+    shared_ptr<VRFloatTime> attack = make_shared<VRFloatTime>("attack"); // Attack time for the amplitude envelope
+    shared_ptr<VRFloatTime> decay = make_shared<VRFloatTime>("decay"); // Decay time for the amplitude envelope
     shared_ptr<VRFloat> sustain = make_shared<VRFloat>("sustain", 1.0f, 0.0f, 1.0f, 0.01f, 0.01f); // Sustain level for the amplitude envelope
-    shared_ptr<VRFloat> release = make_shared<VRFloat>("release", 0.01f, 0.001f, 20.0f, 0.001f, 0.001f); // Release time for the amplitude envelope
+    shared_ptr<VRFloatTime> release = make_shared<VRFloatTime>("release"); // Release time for the amplitude envelope
+    shared_ptr<VRFloat> velocitySensitivity = make_shared<VRFloat>("velocitySensitivity", .5f, 0.0f, 1.0f, 0.01f, 0.001f); // Velocity sensitivity for the amplitude envelope
+
 
     shared_ptr<choc::buffer::ChannelArrayBuffer<float>> _sampleBus;
     shared_ptr<VoiceAllocator> voiceAllocator; // Voice allocator for managing polyphony
@@ -523,26 +520,30 @@ public:
             }
         });
         startPosition->updateObservers();
-        parameters.push_back(startPosition); // Add the start position parameter to the list of parameters
+        startPosition->setDisplayName("start");
+        parameters.push_back(startPosition); 
 
         // End Position parameter
         endPosition->onValueChanged.connect([this](int value) {
             for (auto &voice : _voices) {
-                voice.endSample = value; // Update the end sample position for each voice
-                voice.samplerNode->setEnd(value); // Set the end sample position for each voice
+                voice.endSample = value; 
+                voice.samplerNode->setEnd(value);
             }
         });
         endPosition->updateObservers();
-        parameters.push_back(endPosition); // Add the end position parameter to the list of parameters
+        endPosition->setDisplayName("end");
+        parameters.push_back(endPosition); 
 
 
         // Loop parameter
         loop->onValueChanged.connect([this](bool value) {
             for (auto &voice : _voices) {
-                voice.samplerNode->setLooping(value); // Set the looping mode for each voice
+                voice.samplerNode->setLooping(value); 
             }
         });
         loop->updateObservers();
+        loop->setDisplayName("loop");
+        parameters.push_back(loop); 
 
 
         // Sampler Mode parameter
@@ -552,14 +553,18 @@ public:
             }
         });
         samplerMode->updateObservers(); 
+        samplerMode->setDisplayName("mode");
+        parameters.push_back(samplerMode);
 
         // maxVoices
         maxVoices->onValueChanged.connect([this](int value) {
             if (value < 1 || value > kMaxVoices) {
             }
-            voiceAllocator->_maxVoices = value; // Update the maximum voices in the voice allocator
+            voiceAllocator->_maxVoices = value; 
         });
+        maxVoices->setDisplayName("voices");
         maxVoices->updateObservers();
+        parameters.push_back(maxVoices);
 
         // Legato
         legato->onValueChanged.connect([this](bool value) {
@@ -569,6 +574,8 @@ public:
             }
         });
         legato->updateObservers();
+        legato->setDisplayName("legato");
+        parameters.push_back(legato);
 
         // Glide
         glideMs->onValueChanged.connect([this](double value) {
@@ -577,6 +584,8 @@ public:
             }
         });
         glideMs->updateObservers();
+        glideMs->setDisplayName("glide");
+        parameters.push_back(glideMs);
 
         // Attack
         attack->onValueChanged.connect([this](float value) {
@@ -585,6 +594,8 @@ public:
             }
         });
         attack->updateObservers();
+        attack->setDisplayName("attack");
+        parameters.push_back(attack);
 
         // Decay
         decay->onValueChanged.connect([this](float value) {
@@ -593,6 +604,8 @@ public:
             }
         });
         decay->updateObservers();
+        decay->setDisplayName("decay");
+        parameters.push_back(decay);
 
         // Sustain
         sustain->onValueChanged.connect([this](float value) {
@@ -601,6 +614,8 @@ public:
             }
         });
         sustain->updateObservers();
+        sustain->setDisplayName("sustain");
+        parameters.push_back(sustain);
 
         // Release
         release->onValueChanged.connect([this](float value) {
@@ -609,8 +624,20 @@ public:
             }
         });
         release->updateObservers();
+        release->setDisplayName("release");
+        parameters.push_back(release);
 
-    }
+        // Velocity Sensitivity
+        velocitySensitivity->onValueChanged.connect([this](float value) {
+            for (auto &voice : _voices) {
+                voice.velocitySensitivity = value; // Set the velocity sensitivity for each voice
+            }
+        });
+        velocitySensitivity->updateObservers();
+        velocitySensitivity->setDisplayName("velocity");
+        parameters.push_back(velocitySensitivity);
+
+    } // End of connectParameters
 
     void stopAllNotes() override{
         for (auto &voice : _voices) {

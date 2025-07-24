@@ -5,8 +5,16 @@
 #include "LabSound/LabSound.h"
 #include "LabSound/extended/FunctionNode.h"
 #include <memory>
-
-enum envState { env_idle = 0, env_attack, env_decay, env_sustain, env_release };
+#include <unordered_map>
+enum envState { env_idle = 0, env_attack, env_decay, env_sustain, env_release , env_retrigger};
+inline std::unordered_map<envState, std::string> envStateToString = {
+    {env_idle, "idle"},
+    {env_attack, "attack"},
+    {env_decay, "decay"},
+    {env_sustain, "sustain"},
+    {env_release, "release"},
+    {env_retrigger, "retrigger"}
+};
 
 class ADSR {
 public:
@@ -28,6 +36,7 @@ public:
   void setAttackRate(float rate);
   void setDecayRate(float rate);
   void setReleaseRate(float rate);
+  void setRetriggerRate(float rate);
   void setSustainLevel(float level);
   void setTargetRatioA(float targetRatio);
   void setTargetRatioDR(float targetRatio);
@@ -40,9 +49,22 @@ public:
   void setDecayTimeSeconds(float seconds);
   void setReleaseTimeSeconds(float seconds);
   void resetEnvelope();
+  void setState(envState newState);
+  void setStateChangedCallback(std::function<void(envState, envState)> callback) {
+    onStateChanged = callback;
+  }
+  void sendStateChanged(envState oldState, envState newState) {
+    // log the state change
+    state = static_cast<int>(newState);
+    if (onStateChanged) {
+      onStateChanged(oldState, newState);
+      
+    }
+  }
 
 protected:
   ADSRMode mode = ADSRMode::ADSR; // ADSR mode (One Shot or ADSR)
+  std::function<void(envState, envState)> onStateChanged;
   int state;
   float sampleRate;
   float output;
@@ -58,6 +80,9 @@ protected:
   float attackBase;
   float decayBase;
   float releaseBase;
+  float retriggerRate;
+  float retriggerCoef;
+  float retriggerBase;
   std::string name;
   float calcCoef(float rate, float targetRatio);
 };
@@ -74,10 +99,11 @@ inline float ADSR::process() {
 
       // Transition to decay or sustain state based on mode
       if(mode == ADSRMode::ADSR) {
-        state = env_decay; // Transition to decay state
+        setState(env_decay); // Transition to decay state
       } else {
-        state = env_sustain; // Transition to sustain state
+        setState(env_sustain);
       }
+      
     }
     break;
 
@@ -85,7 +111,7 @@ inline float ADSR::process() {
     output = decayBase + output * decayCoef;
     if (output <= sustainLevel) {
       output = sustainLevel;
-      state = env_sustain;
+      setState(env_sustain); // Transition to sustain state
     }
     break;
 
@@ -94,16 +120,22 @@ inline float ADSR::process() {
 
   case env_release:
     if(mode == ADSRMode::ONESHOT) {
-      state = env_idle; // Transition to idle state if in one-shot mode
+      setState(env_idle);
       break;
     }
     
     output = releaseBase + output * releaseCoef;
     if (output <= 0.0) {
       output = 0.0;
-      state = env_idle;
+      setState(env_idle); // Transition to idle state after release
     }
     break;
+  case env_retrigger:
+    output = retriggerBase + output * retriggerCoef;
+    if (output <= 0.0) {
+      output = 0.0;
+      setState(env_attack); // Transition to attack state after retrigger
+    }
   }
   return output;
 }
@@ -126,10 +158,20 @@ inline void ADSR::setAll(float attackSeconds, float decaySeconds, float sustainL
 }
 inline void ADSR::gate(int gate) {
 
-  if (gate)
-    state = env_attack;
-  else if (state != env_idle)
-    state = env_release;
+  if (gate){
+    setState(env_attack); // Set state to attack when gate is pressed
+  }
+  else if (state != env_idle){
+    setState(env_release);
+  }
+}
+
+inline void ADSR::setState(envState newState) {
+  if (state != newState) {
+    envState oldState = static_cast<envState>(state);
+    state = newState;
+    sendStateChanged(oldState, newState);
+  }
 }
 
 inline int ADSR::getState() { return state; }

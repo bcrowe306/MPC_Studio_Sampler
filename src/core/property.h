@@ -37,7 +37,5 @@ public:
     }
 
 protected:
-
-    
     T _value; // The property value
 };

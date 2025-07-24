@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "control_surface/mpc_studio_black_surface.h"
 #include "core/mpc_sampler.h"
+#include "ui/display.h"
 
 using std::string;
 using std::shared_ptr;
@@ -33,6 +34,7 @@ public:
     Signal onDeactivate; // Signal emitted when the component is deactivated
     vector<sigslot::connection> controlConnections; // Store connections for controls
     shared_ptr<MPCStudioBlackControlSurface> controlSurface; // Reference to the MPC Studio Black control surface
+    shared_ptr<Display> display; // Reference to the display for UI updates
     shared_ptr<MPCSampler> mpcSampler; // Reference to the MPC Sampler
 
     
@@ -42,6 +44,10 @@ public:
 
     void addConnection(const sigslot::connection &conn) {
         controlConnections.push_back(conn); // Add a new connection to the vector
+    };
+
+    void setDisplay(shared_ptr<Display> display_) {
+        display = display_; // Set the display reference
     };
 
     virtual ~Component() = default;

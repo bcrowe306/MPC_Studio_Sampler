@@ -7,6 +7,7 @@
 #include "sigslot/signal.hpp"
 
 class Component; // Forward declaration of Component class
+class Router;
 
 class MPCStudioBlackControlSurface : public enable_shared_from_this<MPCStudioBlackControlSurface>{
 public:
@@ -18,6 +19,7 @@ public:
     shared_ptr<Component> pageComponent; // Page component for handling page changes
     shared_ptr<Component> browserComponent; // Browser component for handling browser events
     shared_ptr<Component> transportComponent; // Transport component for handling transport controls
+    shared_ptr<Router> router; // Router for handling page navigation
 
     // Controls =============
     shared_ptr<OneColorButtonControl> playButton = make_shared<OneColorButtonControl>(PLAY_BUTTON, "Play Button");
@@ -217,7 +219,7 @@ public:
 
             // Bind the metronome tick signal to each control's onMetronomeTick method. This allows for blinking
             for(auto &control : device->controlRegistry) {
-                mpcSampler->project->playhead->onMetronomeTick.connect(
+                mpcSampler->playhead->onMetronomeTick.connect(
                     std::bind(&Control::onMetronomeTick, control.get(),
                               std::placeholders::_1, std::placeholders::_2,
                               std::placeholders::_3));
@@ -226,5 +228,7 @@ public:
 
     void uninitialize(){
     }
+
+
 };
 

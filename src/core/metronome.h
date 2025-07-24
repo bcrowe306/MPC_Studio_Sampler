@@ -94,6 +94,9 @@ class MetronomeNode {
         void setHalfBeatEnabled(bool enabled) {
             _halfBeatEnabled = enabled;
         }
+        void toggleEnabled() {
+            _enabled = !_enabled; // Toggle the enabled state
+        }
 
     protected:
         bool _enabled = true; // Metronome enabled state

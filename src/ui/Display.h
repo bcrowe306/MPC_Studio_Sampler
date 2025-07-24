@@ -17,6 +17,8 @@ using std::string;
 
 typedef shared_ptr<unordered_map<string, shared_ptr<PageWidget>>> PageCollection;
 
+class Project;
+
 class Display {
 public:
     EncodeSurfaceCallback encode_surface_callback;
@@ -37,21 +39,23 @@ public:
         
     }
 
-    void initialize() {
+    void initialize(shared_ptr<Project> project) {
         // Initialize all pages
         for (auto &[name, page] : *router->get_pages()) {
             if (page) {
                 page->initialize(encode_surface_callback);
                 page->controlSurface = controlSurface; // Set the control surface for each page
                 page->router = router; // Set the router for each page
+                page->project = project; // Set the project for each page
             }
         }
 
-        // Connect the displayPage parameter to the show_page method
-        // TODO: Connect this listener to the router's push method instead
-        mpcSampler->project->displayPage.onValueChanged.connect(std::bind(&Router::showPage, router.get(), std::placeholders::_1));
-        auto initialPage = mpcSampler->project->displayPage.getValue();
-        router->showPage(initialPage);
+        router->push("devicePage"); // Show the device page by default
+    }
+
+    void uninitialize() {
+        // Uninitialize all pages
+        router->deactivateAll(); // Deactivate all pages
     }
 
     
@@ -60,7 +64,10 @@ protected:
 };
 
 
-static inline shared_ptr<Display> create_display(shared_ptr<MPCSampler> mpcSampler, shared_ptr<MPCStudioBlackControlSurface> controlSurface, EncodeSurfaceCallback encode_surface_callback) {
+static inline shared_ptr<Display> create_display(
+    shared_ptr<MPCSampler> mpcSampler, 
+    shared_ptr<MPCStudioBlackControlSurface> controlSurface, 
+    EncodeSurfaceCallback encode_surface_callback) {
     auto router = std::make_shared<Router>();
 
     auto display = std::make_shared<Display>(router, mpcSampler, controlSurface, encode_surface_callback);
@@ -81,7 +88,6 @@ static inline shared_ptr<Display> create_display(shared_ptr<MPCSampler> mpcSampl
     router->add_page("performPage", performPage);
     router->add_page("browserPage", browserPage);
     router->add_page("settingsPage", settingsPage);
-    display->initialize();
     return display;
 }
 

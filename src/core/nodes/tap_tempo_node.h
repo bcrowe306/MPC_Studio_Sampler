@@ -1,3 +1,4 @@
+#pragma once
 #include "LabSound/LabSound.h"
 #include "LabSound/extended/AudioContextLock.h"
 #include "LabSound/extended/FunctionNode.h"

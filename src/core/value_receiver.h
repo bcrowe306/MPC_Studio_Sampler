@@ -5,8 +5,19 @@
 #include <concepts>
 #include <cstddef>
 #include <string>
+#include "fmt/format.h"
+
+
 class ValueReceiverBase{
 public:
+    enum class ValueType {
+        Int,
+        Float,
+        Double,
+        String,
+        Bool,
+        Option,
+    };
     ValueReceiverBase(std::string name) : _name(name) {
         _displayName = name; // Set the display name to the same as the name by default
     }
@@ -15,38 +26,50 @@ public:
     virtual void deserialize(YAML::Node &yaml) = 0;
     virtual void incrementValue(bool isCoarse) = 0;
     virtual void decrementValue(bool isCoarse) = 0;
-    virtual std::string getName() const {
+    
+    // Default implementation, can be overridden
+    virtual float getUnitValue () const {
+        return 0.0f; 
+    }
+    
+    // Default implementation, can be overridden
+    virtual std::string getStringValue() const {
+      return ""; 
+    }
+    std::string getName() const {
         return _name;
     };
-    virtual void setName(const std::string &name) {
+    void setName(const std::string &name) {
         _name = name;
     };
-    virtual uuids::uuid getId() const {
+
+    uuids::uuid getId() const {
         return _id;
     };
-    virtual void setId(const uuids::uuid &id) {
-        _id = id;
-    };
-    virtual std::string getDisplayName() const {
+    
+    std::string getDisplayName() const {
         return _displayName;
     };
-    virtual void setDisplayName(const std::string &displayName) {
+    void setDisplayName(const std::string &displayName) {
         _displayName = displayName;
+    };
+    ValueType getValueType() const {
+        return _valueType;
     };
 
 protected:
     uuids::uuid _id = generateUUID();
     std::string _name = "";
     std::string _displayName = ""; 
+    ValueType _valueType = ValueType::Float; // Default value type
 };
 
 
 // Template class for value receivers that can handle different types of values
 
 template <typename T>
-class ValueReceiver : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<T>>,
-                      public ValueReceiverBase {
+class ValueReceiver : public IReceiver, public enable_shared_from_this<ValueReceiver<T>>,  public ValueReceiverBase 
+{
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
@@ -160,9 +183,8 @@ protected:
 // Specialization for bool type
 // This specialization is needed because bool is not a numeric type and has different behavior
 template <>
-class ValueReceiver<bool> : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<bool>>,
-                      public ValueReceiverBase {
+class ValueReceiver<bool> : public IReceiver, public enable_shared_from_this<ValueReceiver<bool>>, public ValueReceiverBase 
+{
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<bool> onValueChanged;
@@ -203,13 +225,23 @@ public:
   void incrementValue(bool isCoarse) override {
     // For boolean values, incrementing or decrementing doesn't make sense,
     // but we can toggle the value instead.
-    setValue(!_value.load(memory_order_relaxed));
+    setValue(true);
   }
 
   void decrementValue(bool isCoarse) override {
     // For boolean values, decrementing or incrementing doesn't make sense,
     // but we can toggle the value instead.
-    setValue(!_value.load(memory_order_relaxed));
+    setValue(false);
+  }
+
+  float getUnitValue() const override {
+    // Convert boolean to float (0.0 for false, 1.0 for true)
+    return _value.load(memory_order_relaxed) ? 1.0f : 0.0f;
+  }
+
+  std::string getStringValue() const override {
+    // Convert boolean to string
+    return _value.load(memory_order_relaxed) ? "on" : "off";
   }
 
   void doAction(any value, bool undo) override {
@@ -267,9 +299,8 @@ template <typename T>
 concept Numeric = std::is_arithmetic_v<T>;
 
 template <Numeric T>
-class ValueReceiver<T> : public IReceiver,
-                      public enable_shared_from_this<ValueReceiver<T>>,
-                      public ValueReceiverBase {
+class ValueReceiver<T> : public IReceiver,  public enable_shared_from_this<ValueReceiver<T>>, public ValueReceiverBase 
+{
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
@@ -288,6 +319,17 @@ public:
   void updateObservers() {
     // Notify observers of the value change
     onValueChanged(_value);
+  }
+
+  float getUnitValue() const override {
+    // Convert the value to a unit value (0.0 to 1.0)
+    if (_max == _min) return 0.0f; // Avoid division by zero
+    return ((float)_value - (float)_min) / ((float)_max - (float)_min);
+  }
+
+  string getStringValue() const override {
+    // Convert the value to a string representation
+    return fmt::format("{}", _value);
   }
 
   void setValue(T newValue) {
@@ -440,10 +482,10 @@ protected:
   shared_ptr<UndoManager> undoManager_;
 };
 
+
 template <typename T>
-class ValueOptionsReceiver : public IReceiver,
-                      public enable_shared_from_this<ValueOptionsReceiver<T>>,
-                      public ValueReceiverBase {
+class ValueOptionsReceiver : public IReceiver, public enable_shared_from_this<ValueOptionsReceiver<T>>, public ValueReceiverBase 
+{
   using Command = ::Command; // Use the Command class defined above
 public:
   sigslot::signal<T> onValueChanged;
@@ -471,6 +513,17 @@ public:
       }
     }
   }
+
+  float getUnitValue() const override {
+    // Convert the value to a unit value (0.0 to 1.0)
+    auto it = std::find(_options.begin(), _options.end(), _value);
+    if (it != _options.end()) {
+      size_t index = std::distance(_options.begin(), it);
+      return static_cast<float>(index) / static_cast<float>(_options.size() - 1);
+    }
+    return 0.0f; // Default if not found
+  }
+  
 
   // Override the = operator to set the value and emit signals
   ValueOptionsReceiver<T> &operator=(const T &value) {
@@ -501,19 +554,25 @@ public:
   }
 
   void incrementValue(bool isCoarse) override {
-    size_t currentIndex = getSelectedOptionIndex();
-    if (currentIndex == -1) return; // Value not found in options
-
-    size_t nextIndex = (currentIndex + 1) % _options.size(); // Wrap around
+    size_t nextIndex = std::clamp((int)getSelectedOptionIndex() + 1, 0, (int)_options.size() - 1); // clamp
     setValue(_options[nextIndex]);
   }
 
   void decrementValue(bool isCoarse) override {
-    size_t currentIndex = getSelectedOptionIndex();
-    if (currentIndex == -1) return; // Value not found in options
-
-    size_t prevIndex = (currentIndex - 1 + _options.size()) % _options.size(); // Wrap around
+    size_t prevIndex = std::clamp((int)getSelectedOptionIndex() - 1, 0, (int)_options.size() - 1); // clamp
     setValue(_options[prevIndex]);
+  }
+
+  std::string getStringValue() const override {
+    // Convert the value to a string representation
+    auto it = std::find(_options.begin(), _options.end(), _value);
+    if (it != _options.end()) {
+      size_t index = std::distance(_options.begin(), it);
+      if (index < _optionNames.size()) {
+        return _optionNames[index];
+      }
+    }
+    return ""; // Default if not found
   }
 
   void updateObservers() {
@@ -603,6 +662,54 @@ class VRFloatDB : public ValueReceiver<float> {
 public:
   VRFloatDB(string name, float initialValue, shared_ptr<UndoManager> undoManager = nullptr)
       : ValueReceiver<float>(name, initialValue, -60.0f, 12.0f, 1.0f, 0.1f, undoManager) {}
+
+  string getStringValue() const override {
+    // Convert the value to a string representation in dB
+    return fmt::format("{:.02f} dB", _value);
+  }
+};
+
+class VRFloatTime : public ValueReceiver<float> {
+
+public:
+  VRFloatTime(string name, float initialValue = 0.0f, shared_ptr<UndoManager> undoManager = nullptr)
+      : ValueReceiver<float>(name, initialValue, 0.0f, 1.0f, .01f, 0.001f, undoManager) {}
+
+  float normalizedToTime(float normalized, float minTime = 0.001f, float maxTime = 10.0f) const {
+    return minTime * std::pow(maxTime / minTime, normalized);
+  }
+
+  float timeToNormalized(float time, float minTime = 0.001f, float maxTime = 10.0f) const {
+      return std::log(time / minTime) / std::log(maxTime / minTime);
+  }
+
+  float getUnitValue() const override {
+    // Convert the value to a unit value (0.0 to 1.0)
+    return _value;
+  }
+
+  string getStringValue() const override {
+    // Convert the value to a string representation
+    float timeInSeconds = normalizedToTime(_value);
+    float seconds = timeInSeconds;
+    float milliseconds = timeInSeconds * 1000.0f;
+    if(timeInSeconds < 1.0f) {
+      return fmt::format("{:.0f}ms", milliseconds);
+    } else {
+      return fmt::format("{:.02f}s", seconds);
+    }
+    
+  }
+
+  void doAction(any value, bool undo) override {
+    // cast to T and set the value
+    if (value.type() == typeid(float)) {
+      _value = any_cast<float>(value);
+      onValueChanged(normalizedToTime(_value));
+    } else {
+      throw std::runtime_error("Invalid type for ValueReceiver");
+    }
+  }
 };
 
 typedef ValueReceiver<std::string> VRString;
@@ -614,4 +721,3 @@ typedef ValueOptionsReceiver<std::string> VRStringOptions;
 typedef ValueOptionsReceiver<int> VRIntOptions;
 typedef ValueOptionsReceiver<float> VRFloatOptions;
 typedef ValueOptionsReceiver<double> VRDoubleOptions;
-

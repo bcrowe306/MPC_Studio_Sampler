@@ -404,13 +404,15 @@ public:
             if (!clip.enabled) {
                 continue; // Skip disabled clips
             }
+
+            // TODO: Use iterator to avoid constantly looping through events on each tick
             for (auto &event : clip.events) {
                 if (event.startTick == _songPosition.tick.load(memory_order_relaxed)) {
-                    auto msg = ShortMessage(event.startEvent.data()[0], event.pitch, event.velocity); // Create a new MIDI message
+                    auto msg = event.generateMidiData(true); // Generate MIDI data for the start event
                     fireEvent(trackIndex, msg); // Fire the start event
                 }
                 if (event.type == MidiEvent::EventType::Note && event.startTick + event.duration == _songPosition.tick.load(memory_order_relaxed)) {
-                    auto msg = ShortMessage(event.endEvent.data()[0], event.pitch, 0); // Create a new MIDI message for note off
+                    auto msg = event.generateMidiData(false);
                     fireEvent(trackIndex, msg); // Fire the end event
                 }
             }
@@ -472,6 +474,38 @@ protected:
         }
     }
 
+    // Function to handle recording events
+    void _doRecordEvent(int tick, int trackIndex, MidiClip &clip, ShortMessage &msg) {
+
+        if (msg.isNoteOn()) {
+            activeNotes[msg.getNoteNumber()] = ActiveNote{tick, msg, trackIndex}; // Store active note with its track index
+        } 
+
+        else if (msg.isNoteOff()) {
+            auto it = activeNotes.find(msg.getNoteNumber());
+            if (it != activeNotes.end() && it->second.trackIndex == trackIndex) {
+                MidiEvent noteEvent(clip.getNewEventId(), it->second.tick, _songPosition.tick.load(memory_order_relaxed), it->second.noteOn, msg);
+                noteEvent.trackIndex = trackIndex; // Set the track index for the note event
+
+                undoManager_->executeCommand(
+                    make_shared<AddNoteCommand>(shared_from_this(), noteEvent), false); // Add command to undo manager
+
+                onSequenceChanged();
+                activeNotes.erase(it);
+            }
+        } 
+
+        else {
+            auto newMidiEvent = MidiEvent(
+                clip.getNewEventId(),
+                _songPosition.tick.load(memory_order_relaxed), msg);
+            newMidiEvent.trackIndex = trackIndex;
+            undoManager_->executeCommand( make_shared<AddNoteCommand>(shared_from_this(), newMidiEvent), false);
+            onSequenceChanged(); 
+        }
+    }
+
+    // Function to handle recording events during regular recording
     void _recordEvent(int trackIndex, ShortMessage &msg) {
             if (trackIndex < 0 || trackIndex >= static_cast<int>(clips.size())) {
                 return; // Invalid track index
@@ -480,68 +514,31 @@ protected:
             if (!clip.enabled) {
                 return; // Clip is disabled
             }
-            if (msg.isNoteOn()) {
-
-                activeNotes[msg.getNoteNumber()] = ActiveNote{_calcEventTick(), msg, trackIndex}; // Store active note with its track index
-
-            } 
-            else if (msg.isNoteOff()) {
-                auto it = activeNotes.find(msg.getNoteNumber());
-                if (it != activeNotes.end() && it->second.trackIndex == trackIndex) {
-                    MidiEvent noteEvent(clip.getNewEventId(), it->second.tick, _songPosition.tick.load(memory_order_relaxed), it->second.noteOn, msg);
-                    noteEvent.trackIndex = trackIndex; // Set the track index for the note event
-
-                    undoManager_->executeCommand(
-                        make_shared<AddNoteCommand>(shared_from_this(), noteEvent), false); // Add command to undo manager
-
-                    // Emit signal when the sequence changes
-                    onSequenceChanged();
-                    activeNotes.erase(it);
-                }
-            } 
-            else {
-                // addMidiEvent( MidiEvent(clip.getNewEventId(), _songPosition.tick.load(memory_order_relaxed), msg));
-                undoManager_->executeCommand(
-                    make_shared<AddNoteCommand>(shared_from_this(), MidiEvent(clip.getNewEventId(), _songPosition.tick.load(memory_order_relaxed), msg)), false);
-            }
+            _doRecordEvent(_calcEventTick(), trackIndex, clip, msg);
     }
+
+
+    // Function to handle recording events during precount
     void _recordPrecountEvent(int trackIndex, ShortMessage &msg) {
-            if(_precountTicks.load(memory_order_relaxed) < _precountLengthInTicks.load(memory_order_relaxed) - kTPQN / 4){
-                return; // Do not record events during precount if the tick is less than the precount length - 1/16th
-            }
-            std::cout << "Recording precount event at tick: " << _precountTicks.load(memory_order_relaxed) << std::endl; // Debug output --- IGNORE ---
-            if (trackIndex < 0 || trackIndex >= static_cast<int>(clips.size())) {
-                return; // Invalid track index
-            }
-            auto &clip = clips[trackIndex];
-            if (!clip.enabled) {
-                return; // Clip is disabled
-            }
-
-            if (msg.isNoteOn()) {
-
-                activeNotes[msg.getNoteNumber()] = ActiveNote{0, msg, trackIndex}; // Store active note with its track index
-
-            } 
-            else if (msg.isNoteOff()) {
-                auto it = activeNotes.find(msg.getNoteNumber());
-                if (it != activeNotes.end() && it->second.trackIndex == trackIndex) {
-                    MidiEvent noteEvent(clip.getNewEventId(), it->second.tick, _songPosition.tick.load(memory_order_relaxed), it->second.noteOn, msg);
-                    noteEvent.trackIndex = trackIndex; // Set the track index for the note event
-
-                    undoManager_->executeCommand(
-                        make_shared<AddNoteCommand>(shared_from_this(), noteEvent), false); // Add command to undo manager
-
-                    // Emit signal when the sequence changes
-                    onSequenceChanged();
-                    activeNotes.erase(it);
-                }
-            } 
-            else {
-                // addMidiEvent( MidiEvent(clip.getNewEventId(), _songPosition.tick.load(memory_order_relaxed), msg));
-                undoManager_->executeCommand(
-                    make_shared<AddNoteCommand>(shared_from_this(), MidiEvent(clip.getNewEventId(), _songPosition.tick.load(memory_order_relaxed), msg)), false);
-            }
+        
+        // Do not record if the tick is less than the precount length - 1/16th
+        if(_precountTicks.load(memory_order_relaxed) < _precountLengthInTicks.load(memory_order_relaxed) - kTPQN / 4){
+            return; 
+        }
+        std::cout << "Recording precount event at tick: " << _precountTicks.load(memory_order_relaxed) << std::endl; // Debug output --- IGNORE ---
+        
+        // Invalid track index
+        if (trackIndex < 0 || trackIndex >= static_cast<int>(clips.size())) {
+            return; 
+        }
+        
+        // Clip is disabled
+        auto &clip = clips[trackIndex];
+        if (!clip.enabled) {
+            return; 
+        }
+        _doRecordEvent(0, trackIndex, clip, msg);
+           
     }
 
     int _calcEventTick(bool isEndTick = false){

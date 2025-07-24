@@ -5,6 +5,7 @@
 #include "audio/choc_AudioFileFormat_WAV.h"
 #include <Security/Security.h>
 #include <_types/_uint64_t.h>
+#include <iostream>
 #include <memory>
 #include <atomic>
 #include <string>
@@ -155,17 +156,15 @@ public:
     shared_ptr<ChannelArrayBuffer<float>> audioBufferView; // Audio buffer to play
     BufferPlayer(shared_ptr<AudioContext> context)
         : audioContext(context), 
-        stopRampL(1.0, 0.0, 20.0, context->sampleRate()), 
-        stopRampR(1.0, 0.0, 20.0, context->sampleRate()),
+        stopRampL(1.0, 0.0, 25.0, context->sampleRate()), 
+        stopRampR(1.0, 0.0, 25.0, context->sampleRate()),
         playbackRateRamp(1.0, 1.0, 50.0, context->sampleRate())
     {
         _sampleRate = audioContext->sampleRate(); // Set the sample rate from the audio context
         outputNode = make_shared<FunctionNode>(*audioContext.get(), _channels);
         outputNode->setFunction(std::bind(&BufferPlayer::processCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         outputNode->start(0.0); // Start the function node immediately
-        stopRampL.onEnded.connect([this]() {
-            onRampEnded();
-        });
+        
     }
 
     ~BufferPlayer() {
@@ -176,36 +175,18 @@ public:
          // Store the last counter value for tracking changes
         if (audioBufferView != nullptr && audioBufferView->getNumFrames() > 0 && _isPlaying.load(std::memory_order_relaxed)){
             if (channelIndex == 0) {
-              _lastCounter = _counter;
+              _lastCounter = _counter.load(std::memory_order_relaxed);
             } else {
-              _counter = _lastCounter; // Reset counter for the second channel
+              _counter.store(_lastCounter, std::memory_order_relaxed); // Reset counter for the second channel
             }
         }
         
+
         for (int i = 0; i < bufferSize; ++i) {
 
             if (audioBufferView != nullptr && audioBufferView->getNumFrames() > 0 && _isPlaying.load(std::memory_order_relaxed)) {
-
                     
-                    uint64_t currentFrame = static_cast<uint64_t>(_counter);
-                    uint64_t nextFrame = currentFrame + 1;
-                    float fraction = static_cast<float>(_counter - static_cast<double>(currentFrame));
-                    
-                    // Ensure we don't read past the buffer bounds
-                    if (nextFrame >= audioBufferView->getNumFrames() || nextFrame >= _end) {
-                        nextFrame = currentFrame; // Reset next frame to current if out of bounds
-
-                    } else {
-
-                        // Get samples for interpolation
-                        float currentSample = getAudioBufferSample(channelIndex, currentFrame);
-                        float nextSample = getAudioBufferSample(channelIndex, nextFrame);
-                        
-                        // Linear interpolation (when fraction is 0, this equals currentSample)
-                        values[i] = currentSample + fraction * (nextSample - currentSample);
-
-                    
-                    }
+                values[i] = interpolateSample(_counter.load(std::memory_order_relaxed), channelIndex);
                 _incrementCounter();
 
                 // Apply stop ramp if active
@@ -214,42 +195,61 @@ public:
                 } else if (channelIndex == 1 && stopRampR.getState()) {
                     values[i] *= stopRampR.process();
                 }
-                _playbackRate.store(playbackRateRamp.process(), std::memory_order_relaxed); // Apply the playback rate ramp
+                if(ampRampState && !stopRampL.getState()) {
+                    onRampEnded(); // Call onRampEnded if the stop ramp is not active
+                }
+                ampRampState = stopRampL.getState(); // Update amp ramp state
+                
+                // Apply the playback rate ramp
+                _playbackRate.store(playbackRateRamp.process(), std::memory_order_relaxed); 
             }
+
             else {
                 values[i] = 0.0f; // If no buffer is set or not playing, output silence
             }
-
-            // if (channelIndex == _channels - 1) {
-               
-            // }
         }
     }
 
+    float interpolateSample(double currentCounter, int channelIndex) {
+        uint64_t currentFrame = static_cast<uint64_t>(currentCounter);
+        uint64_t nextFrame = currentFrame + 1;
+        float fraction = static_cast<float>(currentCounter - static_cast<double>(currentFrame));
+
+        // Ensure we don't read past the buffer bounds
+        if (nextFrame >= audioBufferView->getNumFrames() || nextFrame >= _end) {
+            nextFrame = currentFrame; // Reset next frame to current if out of bounds
+        }
+
+        // Get samples for interpolation
+        float currentSample = getAudioBufferSample(channelIndex, currentFrame);
+        float nextSample = getAudioBufferSample(channelIndex, nextFrame);
+
+        // Linear interpolation (when fraction is 0, this equals currentSample)
+        return currentSample + fraction * (nextSample - currentSample);
+    }
+
     void onRampEnded() {
+        _isPlaying.store(false, std::memory_order_relaxed); // Stop playback
         _ended.store(true, std::memory_order_relaxed); // Set ended state to true
-        _isPlaying.store(false, std::memory_order_relaxed); // Stop playback when the ramp ends
-        _counter = static_cast<double>(_start); // Reset counter to start position
+        _counter.store(static_cast<double>(_start), std::memory_order_relaxed); // Reset counter to start position
+
     }
 
     // Start playback of the audio buffer with optional start and end positions
     void play(uint64_t start, uint64_t end) {
-        
+
         setStart(start); // Set the start position
         setEnd(end); // Set the end position
-        stopRampL.reset(); // Reset the stop ramp
-        stopRampR.reset(); // Reset the stop ramp
-        _ended.store(false, std::memory_order_relaxed);    // Reset ended state
-        playbackRateRamp.begin();
-        _isPlaying.store(true, std::memory_order_relaxed); // Set the playing state to true
+        play(); // Start playback
     }
 
     void play() {
-        _counter = static_cast<double>(_start); // Reset the counter to the start position
+        _retrigger.store(false, std::memory_order_relaxed); // Reset retrigger flag if not already playing
         stopRampL.reset(); // Reset the stop ramp
         stopRampR.reset(); // Reset the stop ramp
         _ended.store(false, std::memory_order_relaxed); // Reset ended state
         playbackRateRamp.begin();
+        _counter.store(static_cast<double>(_start), std::memory_order_relaxed); // Reset the counter to the start position
         _isPlaying.store(true, std::memory_order_relaxed); // Set the playing state to true
     }
 
@@ -281,7 +281,7 @@ public:
     void reset() {
         _start = 0; // Reset start position to 0
         _end = audioBufferView ? audioBufferView->getNumFrames() : 0; // Reset end position to the length of the buffer
-        _counter = static_cast<double>(_start); // Reset counter
+        _counter.store(static_cast<double>(_start), std::memory_order_relaxed); // Reset counter
         looping.store(false, std::memory_order_relaxed); 
         _isPlaying.store(false, std::memory_order_relaxed); 
     }
@@ -292,12 +292,12 @@ public:
 
     // Get the current position in the buffer
     double getPosition() const {
-        return _counter; 
+        return _counter.load(std::memory_order_relaxed); 
     }
 
     void setBuffer(shared_ptr<ChannelArrayBuffer<float>> buffer) {
         audioBufferView = buffer; // Set the audio buffer to play
-        _counter = 0.0; // Reset the counter to start from the beginning of the buffer
+        _counter.store(0.0, std::memory_order_relaxed); // Reset the counter to start from the beginning of the buffer
         _start = 0; // Reset start position
         _end = buffer->getNumFrames(); // Set end position to the length of the buffer
     }
@@ -336,18 +336,12 @@ public:
         if (_start >= _end) {
             _start = 0; // Reset to 0 if start is greater than or equal to end
         }
-        if(!isPlaying()){
-            _counter = static_cast<double>(_start); // Reset the counter to the start position if not playing
-        }
     }
 
     void setEnd(uint64_t end) {
         _end = end; // Set the end position
         if (_end <= _start) {
             _end = getLength(); // Reset to the length of the buffer if end is less than or equal to start
-        }
-        if(!isPlaying()){
-            _counter = static_cast<double>(_start); // Reset the counter to the start position if not playing
         }
     }
 
@@ -380,7 +374,7 @@ public:
 private:
     int _channels = 2; // Number of audio channels
     float _sampleRate; // Sample rate for the audio context
-    double _counter = 0.0; // Fractional counter for smooth playback rate
+    atomic<double> _counter = 0.0; // Fractional counter for smooth playback rate
     uint64_t _start = 0;
     uint64_t _end = 0;
     atomic<float> _playbackRate = 1.0f; // Playback rate (1.0 = normal speed)
@@ -389,27 +383,30 @@ private:
     atomic<bool> _ended = false; // Flag to indicate if the player has ended
     double _lastCounter = 0.0; // Last counter value for tracking changes
     std::function<void()> _onPositionEnded;
+    atomic<bool> _retrigger = false; // Flag to indicate if the player should retrigger on stop
+    bool ampRampState = false;
 
 
     void _incrementCounter() {
         if(_isPlaying.load(std::memory_order_relaxed)){
-            
-            _counter += static_cast<double>(_playbackRate.load(std::memory_order_relaxed)); // Increment by playback rate
+            double currentCounter = _counter.load(std::memory_order_relaxed);
+            double newCounter = currentCounter + static_cast<double>(_playbackRate.load(std::memory_order_relaxed));
+            _counter.store(newCounter, std::memory_order_relaxed); // Increment by playback rate
         }
 
         // If the counter exceeds the end position, reset it to the start
-        if(_counter >= static_cast<double>(_end)){
+        if(_counter.load(std::memory_order_relaxed) >= static_cast<double>(_end)){
             
             // If looping is enabled, reset the counter to the start
             if(looping.load(std::memory_order_relaxed)){
-                _counter = static_cast<double>(_start); // Reset the counter to start
+                _counter.store(static_cast<double>(_start), std::memory_order_relaxed); // Reset the counter to start
                 _isPlaying.store(true, std::memory_order_relaxed); // Continue playing if looping is enabled
             } 
             
             // If not looping, stop playback and set the counter to the end
             // This allows the player to stop at the end of the buffer
             else {
-                _counter = static_cast<double>(_end);
+                _counter.store(static_cast<double>(_end), std::memory_order_relaxed);
                 _isPlaying.store(false, std::memory_order_relaxed);
                 _ended.store(true, std::memory_order_relaxed);
             }

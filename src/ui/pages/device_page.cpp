@@ -3,6 +3,7 @@
 #include "fmt/format.h"
 #include "util.h"
 #include "router.h"
+#include "core/project.h"
 
 using std::make_shared;
 
@@ -11,6 +12,7 @@ DevicePage::DevicePage(shared_ptr<MPCSampler> mpcSampler, unsigned int x, unsign
     : PageWidget(mpcSampler, x, y, width, height)
 {
     _title = title;
+
     createWidgets();
     deactivatedSignal.connect([this]() {
 
@@ -58,13 +60,13 @@ void DevicePage::createWidgets(){
 }
 
 void DevicePage::onFrame() {
-    auto track = mpcSampler->project->selectedTrack();
+    auto track = mpcSampler->selectedTrack();
     if (track) {
         auto levelMeters = track->getLevelRMSdB();
         float minDb = -60.0f;
         meterWidget->setMeters(mapFloat(levelMeters.left, minDb, 0.0f, 0.0f, 1.0f), mapFloat(levelMeters.right, minDb, 0.0f, 0.0f, 1.0f));
     }
-    auto selectedSeq = mpcSampler->project->sequencer->getSelectedSequence();
+    auto selectedSeq = mpcSampler->sequencer->getSelectedSequence();
     if (selectedSeq) {
         auto sp = selectedSeq->getSongPositionDisplay();
         if( sp != songPositionDisplay) {
@@ -73,6 +75,7 @@ void DevicePage::onFrame() {
         }
         headerSection->sequenceProgressBar->setProgress(selectedSeq->getSongPositionProgress());
     }
+    updateParameterWidgets();
 }
 
 void DevicePage::onSequenceSelected(int sequenceIndex) {
@@ -80,18 +83,18 @@ void DevicePage::onSequenceSelected(int sequenceIndex) {
         connection.disconnect();
     }
     sequenceConnections.clear();
-    headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
+    headerSection->sequenceNumberWidget->setValue(fmt::format("{}", mpcSampler->sequencer->getSelectedSequenceIndex() + 1));
 }
 
 void DevicePage::onQlinkControlsAdjusted(int index, int offset) {
-    auto track = mpcSampler->project->selectedTrack();
+    auto track = mpcSampler->selectedTrack();
     auto device = track->getDevice();
     if (!device) {
         return;
     }
 
     auto params = device->parameters;
-    int paramIndex = index + (parameterBank * 4);
+    int paramIndex = index + (parameterBank.get() * 4);
     if (paramIndex < 0 || paramIndex >= params.size()) {
         std::cerr << "Invalid parameter index: " << paramIndex << std::endl;
         return;
@@ -103,6 +106,9 @@ void DevicePage::onQlinkControlsAdjusted(int index, int offset) {
     } else if(offset < 0) {
         params[paramIndex]->decrementValue(true);
     }
+    for (int i = 0; i < parameterWidgets.size(); i++) {
+        parameterWidgets[i]->setSelected( i == index);
+    }
 }
 
 void DevicePage::onTrackSelected(int trackIndex) {
@@ -112,14 +118,26 @@ void DevicePage::onTrackSelected(int trackIndex) {
     }
     trackConnections.clear();
 
+
     
-    auto selectedTrack = mpcSampler->project->selectedTrack();
+    auto selectedTrack = mpcSampler->selectedTrack();
+
+    selectedTrack->onTrackDeviceUpdated.connect([this]() {
+        // set the waveform data for the waveform section
+        auto waveformData = mpcSampler->selectedTrack()->getWaveformData();
+        if (waveformData) {
+            waveformSection->setWaveformData(waveformData);
+        } else {
+            waveformSection->setWaveformData(nullptr); // Clear waveform data if no track is selected
+        }
+    });
+
     if (selectedTrack) {
 
         headerSection->rightTextWidget->set_text(selectedTrack->name->getValue());
 
         // set the waveform data for the waveform section
-        auto waveformData = mpcSampler->project->selectedTrack()->getWaveformData();
+        auto waveformData = mpcSampler->selectedTrack()->getWaveformData();
         if (waveformData) {
             waveformSection->setWaveformData(waveformData);
         } else {
@@ -158,8 +176,8 @@ void DevicePage::onTrackSelected(int trackIndex) {
 
         headerSection->leftTextWidget->set_text(selectedTrack->getDeviceTypeName());
 
-        trackConnections.push_back(selectedTrack->onDeviceUpdate.connect([this]() {
-            auto st = mpcSampler->project->selectedTrack();
+        trackConnections.push_back(selectedTrack->onTrackDeviceUpdated.connect([this]() {
+            auto st = mpcSampler->selectedTrack();
             if (st) {
                 headerSection->leftTextWidget->set_text(st->getDeviceTypeName());
             }
@@ -169,6 +187,7 @@ void DevicePage::onTrackSelected(int trackIndex) {
         headerSection->rightTextWidget->set_text("No Track");
     }
 
+    updateParameterWidgets();
 }
 
 void DevicePage::onActivated() {
@@ -177,33 +196,94 @@ void DevicePage::onActivated() {
     functionWidgets[4]->setLabel("Solo");
     functionWidgets[5]->setLabel("Mute");
 
-    addConnection(mpcSampler->project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
+    addConnection(project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
         headerSection->setMetronomeEnabled(enabled);
     }));
-    headerSection->setMetronomeEnabled(mpcSampler->project->metronomeEnabled.getValue());
+    headerSection->setMetronomeEnabled(project->metronomeEnabled.getValue());
 
     // Input Quantize
     addConnection(controlSurface->f3Button->onPressed.connect([this]() {
-       mpcSampler->project->inputQuantize.setValue(!mpcSampler->project->inputQuantize.getValue());
+       project->inputQuantize.setValue(!project->inputQuantize.getValue());
     }));
 
-    addConnection(mpcSampler->project->inputQuantize.onValueChanged.connect([this](bool inputQuantize) {
+    addConnection(project->inputQuantize.onValueChanged.connect([this](bool inputQuantize) {
         headerSection->inputQuantizeButton->setSelected(inputQuantize);
         
     }));
 
 
-    addConnection(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
+    addConnection(project->bpm.onValueChanged.connect([this](float bpm) {
         headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
     }));
-    headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
+    headerSection->bpmWidget->set_text(fmt::format("{:.2f}", project->bpm.getValue()));
 
     addConnection(controlSurface->qlinkEncoders->onOffset.connect([this](int index, int offset) {
         onQlinkControlsAdjusted(index, offset);
     }));
-    
+
+    addConnection(controlSurface->qlinkScrollEncoder->onOffset.connect([this](int offset) {
+        if(controlSurface->shiftButton->isPressed){
+            if (offset > 0) {
+                project->bpm.incrementValue(true); // Increment BPM by coarse value
+            } else if (offset < 0) {
+                project->bpm.decrementValue(true); // Decrement BPM by coarse value
+            }
+        }
+        else {
+            offsetParameterBank(offset); // Adjust the parameter bank by offset
+        }
+    }));
+
+    addConnection(controlSurface->qlinkEncoderTouches->onPressed.connect([this](int index) {
+        onQlinkEncoderTouched(index);
+    }));    
+
+    parameterBank.onValueChanged.connect([this](int) {
+        updateParameterWidgets();
+    });
+    parameterBank.emit();
+
 }
 
 void DevicePage::draw(Vector offset) {
    
+}
+
+void DevicePage::updateParameterWidgets() {
+    auto selectedTrack = mpcSampler->selectedTrack();
+    if(selectedTrack){
+        auto device = selectedTrack->getDevice();
+        if (device){
+            auto params = device->parameters;
+            // update the params according to bank and bankSize making sure to be in bounds
+            for (int i = 0; i < _bankSize; i++) {
+                
+                int paramIndex = i + (parameterBank.get() * _bankSize);
+                if (paramIndex < 0 || paramIndex >= params.size()) {
+                    parameterWidgets[i]->setAll(0.0f, "", ""); // Show widget if in bounds
+                } else {
+                    parameterWidgets[i]->setAll(
+                        params[paramIndex]->getUnitValue(), 
+                        params[paramIndex]->getDisplayName(), 
+                        params[paramIndex]->getStringValue()); // Show widget if in bounds
+                }
+            }
+        } else {
+            for (auto &widget : parameterWidgets) {
+                for (int i = 0; i < _bankSize; i++) {
+                    widget->setAll(0.0f, "", ""); // Clear widgets if no device
+                }
+            }
+        }
+        
+    } 
+}
+
+void DevicePage::onQlinkEncoderTouched(int index){
+    if(hasDevice()){
+        for(int i = 0; i < parameterWidgets.size(); i++) {
+            parameterWidgets[i]->setSelected(i == index); // Highlight the touched parameter widget
+        }
+
+    }
 }

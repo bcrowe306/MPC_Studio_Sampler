@@ -46,7 +46,13 @@ public:
         newEvents.reserve(events.size() ); // Reserve space for doubled events
         for(auto &event : events) {
             // Create a new event with the same properties but adjusted start and end ticks
-            newEvents.emplace_back(getNewEventId(), event.startTick + lengthInTicks, event.startTick + event.duration + lengthInTicks, event.startEvent, event.endEvent);
+            newEvents.emplace_back(
+                getNewEventId(), 
+                event.startTick + lengthInTicks, 
+                event.startTick + event.duration + lengthInTicks,
+                event.generateMidiData(),
+                event.generateMidiData(false) // Generate end event data
+            );
         }
 
         for(auto &event : newEvents) {
@@ -58,7 +64,7 @@ public:
         // Add event to the clip. If an event with the same pitch and startTick already exists, replace it
         auto it = std::find_if(events.begin(), events.end(),
                                [&event](const MidiEvent &e) {
-                                   return e.pitch == event.pitch && e.startTick == event.startTick;
+                                   return e.pitch == event.pitch && e.startTick == event.startTick && e.type == event.type && e.type == MidiEvent::EventType::Note;
                                });
         if (it != events.end()) {
             // If an existing event is found, update it with new duration, velocity, and ID

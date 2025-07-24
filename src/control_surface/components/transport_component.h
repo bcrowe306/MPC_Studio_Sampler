@@ -1,6 +1,7 @@
 #pragma once
 #include "component.h"
 #include <memory>
+#include "core/project.h"
 
 
 class TransportComponent : public Component {
@@ -16,36 +17,36 @@ public:
        auto &con = controlConnections;
        auto &cs = controlSurface;
          controlConnections.push_back(controlSurface->playButton->onPressed.connect([this]() {
-              mpcSampler->project->play();
+              mpcSampler->play();
          }));
 
          controlConnections.push_back(controlSurface->stopButton->onPressed.connect([this]() {
-              mpcSampler->project->stop();
+              mpcSampler->stop();
          }));
 
          controlConnections.push_back(controlSurface->recordButton->onPressed.connect([this]() {
-              mpcSampler->project->toggleRecord();
+              mpcSampler->toggleRecord();
          }));
 
          controlConnections.push_back(controlSurface->numericButton->onPressed.connect([this]() {
-              mpcSampler->project->metronomeEnabled.setValue(!mpcSampler->project->metronomeEnabled.getValue());
+              mpcSampler->metronomeNode->toggleEnabled();
          }));
 
          controlConnections.push_back(controlSurface->tapTempoButton->onPressed.connect([this]() {
-              mpcSampler->project->tapTempo();
+              mpcSampler->tapTempo();
          }));
-         controlConnections.push_back(mpcSampler->project->onIsPlaying.connect([this](bool isPlaying) {
+         controlConnections.push_back(mpcSampler->onIsPlaying.connect([this](bool isPlaying) {
               updateLeds(); // Update the LEDs when playback state changes
          }));
 
-         controlConnections.push_back(mpcSampler->project->playhead->onPlayheadStateChanged.connect([this](Playhead::PlayheadState state) {
+         controlConnections.push_back(mpcSampler->playhead->onPlayheadStateChanged.connect([this](Playhead::PlayheadState state) {
               updateLeds(); // Update the LEDs when playhead state changes
          }));
          addConnection(controlSurface->undoButton->onPressed.connect([this]() {
                if(controlSurface->shiftButton->isPressed) {
-                   mpcSampler->project->undoManager->redo();
+                   mpcSampler->undoManager->redo();
                } else {
-                   mpcSampler->project->undoManager->undo();
+                   mpcSampler->undoManager->undo();
                }
          }));
          updateLeds(); // Update the LEDs based on the current state
@@ -57,7 +58,7 @@ public:
         auto &cs = controlSurface;
         // Play button LED
         controlSurface->tapTempoButton->sendColor(OneColorButtonControl::Colors::ON);
-        if (mpcSampler->project->isPlaying()) {
+        if (mpcSampler->isPlaying()) {
 
             cs->playButton->blinking = true; // Enable blinking for play button
         } else {
@@ -66,7 +67,7 @@ public:
         }
 
         // Record button LED
-        if(mpcSampler->project->playhead->isRecording()) {
+        if(mpcSampler->playhead->isRecording()) {
             cs->recordButton->sendColor(OneColorButtonControl::Colors::ON); // Set record button to ON color
         } else {
             cs->recordButton->sendColor(OneColorButtonControl::Colors::OFF); // Set record button to OFF color

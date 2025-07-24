@@ -37,9 +37,9 @@ void PageWidget::addSequenceConnection(const sigslot::connection &connection) {
 }
 
 void PageWidget::onPreActivated() {
-    addConnection(mpcSampler->project->onTrackSelected.connect(std::bind(&PageWidget::onTrackSelected, this, std::placeholders::_1))); 
+    addConnection(mpcSampler->onTrackSelected.connect(std::bind(&PageWidget::onTrackSelected, this, std::placeholders::_1))); 
     onTrackSelected(); // Initialize with no track selected
-    addConnection(mpcSampler->project->sequencer->onSequenceSelected.connect(std::bind(&PageWidget::onSequenceSelected, this, std::placeholders::_1)));
+    addConnection(mpcSampler->sequencer->onSequenceSelected.connect(std::bind(&PageWidget::onSequenceSelected, this, std::placeholders::_1)));
     onSequenceSelected(); // Initialize with no sequence selected
 }
 

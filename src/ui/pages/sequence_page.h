@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "core/project.h"
 
 class SequencePage : public PageWidget {
     // Device-specific UI elements and layout
@@ -41,7 +42,7 @@ public:
     }
 
     void onFrame() override {
-        auto track = mpcSampler->project->selectedTrack();
+        auto track = mpcSampler->selectedTrack();
         if (track) {
           auto levelMeters = track->getLevelRMSdB();
           float minDb = -60.0f;
@@ -49,7 +50,7 @@ public:
               mapFloat(levelMeters.left, minDb, 0.0f, 0.0f, 1.0f),
               mapFloat(levelMeters.right, minDb, 0.0f, 0.0f, 1.0f));
         }
-        auto selectedSeq = mpcSampler->project->sequencer->getSelectedSequence();
+        auto selectedSeq = mpcSampler->sequencer->getSelectedSequence();
         if (selectedSeq) {
           auto sp = selectedSeq->getSongPositionDisplay();
           if (sp != songPositionDisplay) {
@@ -97,8 +98,8 @@ public:
     void setupSequenceControls (){
 
         // Midi notes
-        int selectedTrackIndex = mpcSampler->project->selectedTrackIndex();
-        auto selectedSequence = mpcSampler->project->sequencer->getSelectedSequence();
+        int selectedTrackIndex = mpcSampler->selectedTrackIndex();
+        auto selectedSequence = mpcSampler->sequencer->getSelectedSequence();
         auto midiClip = selectedSequence->getClip(selectedTrackIndex);
         pianoRollWidget->setMidiClip(midiClip);
         std::cout << "Setting up sequence controls for track index: " << selectedTrackIndex << std::endl;
@@ -112,7 +113,7 @@ public:
         // QLink Controls
         // TODO: Need state here. Make Qlink controls do different things based on state
         addSequenceConnection(controlSurface->qlinkEncoders->onOffsetSlow.connect([this](int qlinkIndex, int offset) {
-            auto seq = mpcSampler->project->sequencer->getSelectedSequence();
+            auto seq = mpcSampler->sequencer->getSelectedSequence();
             if(qlinkIndex == 0){
                 if (offset > 0) {
                     seq->incrementStartTickBeat();
@@ -130,9 +131,9 @@ public:
     }
 
     void setSeqenceLabels(){
-        startButton->setLabel(fmt::format("Start: {}", mpcSampler->project->sequencer->getSelectedSequence()->getStartInBars() + 1 ));
-        endButton->setLabel(fmt::format("Length: {}", mpcSampler->project->sequencer->getSelectedSequence()->getLengthInBars() ));
-        pianoRollWidget->setSequenceEnd(mpcSampler->project->sequencer->getSelectedSequence()->getEndInTicks());
+        startButton->setLabel(fmt::format("Start: {}", mpcSampler->sequencer->getSelectedSequence()->getStartInBars() + 1 ));
+        endButton->setLabel(fmt::format("Length: {}", mpcSampler->sequencer->getSelectedSequence()->getLengthInBars() ));
+        pianoRollWidget->setSequenceEnd(mpcSampler->sequencer->getSelectedSequence()->getEndInTicks());
     }
 
     void onSequenceSelected(int sequenceIndex) override {
@@ -142,7 +143,7 @@ public:
         sequenceConnections.clear();
         headerSection->sequenceNumberWidget->setValue(fmt::format(
             "{}",
-            mpcSampler->project->sequencer->getSelectedSequenceIndex() + 1));
+            mpcSampler->sequencer->getSelectedSequenceIndex() + 1));
         setupSequenceControls();
     }
 
@@ -183,10 +184,10 @@ public:
         });
 
         
-        addConnection(mpcSampler->project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
+        addConnection(project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
             headerSection->setMetronomeEnabled(enabled);
         }));
-        headerSection->setMetronomeEnabled(mpcSampler->project->metronomeEnabled.getValue());
+        headerSection->setMetronomeEnabled(project->metronomeEnabled.getValue());
         
         // Jog Wheel Controls
         addConnection(controlSurface->jogWheel->onOffset.connect([this](int offset) {
@@ -220,12 +221,12 @@ public:
         // Function Buttons
         addConnection(controlSurface->functionButtons->onPressed.connect([this](int index) {
             if (index == 0) { // Assuming index 0 is for "Quantize"
-                auto seq = mpcSampler->project->sequencer->getSelectedSequence();
+                auto seq = mpcSampler->sequencer->getSelectedSequence();
                 // seq->setInputQuantize(!seq->isInputQuantizeEnabled());
                 // headerSection->inputQuantizeButton->setSelected(seq->isInputQuantizeEnabled());
             } else if (index == 2) { // Assuming index 2 is for "Clear"
-                auto seq = mpcSampler->project->sequencer->getSelectedSequence();
-                int trackIndex = mpcSampler->project->selectedTrackIndex();
+                auto seq = mpcSampler->sequencer->getSelectedSequence();
+                int trackIndex = mpcSampler->selectedTrackIndex();
                 seq->clearTrackEvents(trackIndex);
 
             } else if (index == 3) { // Assuming index 3 is for "Mute"
@@ -238,7 +239,7 @@ public:
                 // Handle more options
             }
             if (index == 1) { // Assuming index 1 is for "Double"
-                auto seq = mpcSampler->project->sequencer->getSelectedSequence();
+                auto seq = mpcSampler->sequencer->getSelectedSequence();
                 seq->doubleSequence();
                 pianoRollWidget->setSequenceEnd(seq->getEndInTicks());
             }
@@ -246,16 +247,16 @@ public:
 
 
         // BPM Label and control
-        addConnection(mpcSampler->project->bpm.onValueChanged.connect([this](float bpm) {
+        addConnection(project->bpm.onValueChanged.connect([this](float bpm) {
             headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
         }));
-        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", mpcSampler->project->bpm.getValue()));
+        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", project->bpm.getValue()));
 
         addConnection(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
             if(offset > 0) {
-                mpcSampler->project->metronomeVolumeDb.incrementValue(true);
+                project->metronomeVolumeDb.incrementValue(true);
             } else if(offset < 0) {
-                mpcSampler->project->metronomeVolumeDb.decrementValue(true);
+                project->metronomeVolumeDb.decrementValue(true);
             }
         }));
 

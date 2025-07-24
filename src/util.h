@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <utility>   // for std::pair
 
 using namespace uuids;
 using namespace std;
@@ -12,8 +13,6 @@ static inline unsigned int from_msb_lsb(unsigned char msb, unsigned char lsb) {
     return ((msb & 0x7F) << 7) | (lsb & 0x7F);
 }
 
-#include <algorithm> // for std::clamp
-#include <utility>   // for std::pair
 
 inline static std::pair<int, int> msblsb(int number) {
     int msb = std::clamp(number / 128, 0, 127);
@@ -90,3 +89,38 @@ static inline int getEncoderOffsetAmount(uint8_t value) {
     }
     return offsetAmount;
 }
+
+inline float normalizedToFrequency(float normalized, float minFreq = 20.0f,  float maxFreq = 20000.0f) {
+    return minFreq * std::pow(maxFreq / minFreq, normalized);
+}
+
+inline float frequencyToNormalized(float frequency, float minFreq = 20.0f, float maxFreq = 20000.0f) {
+    return std::log(frequency / minFreq) / std::log(maxFreq / minFreq);
+}
+
+inline float normalizedToTime(float normalized, float minTime = 0.001f, float maxTime = 10.0f) {
+    return minTime * std::pow(maxTime / minTime, normalized);
+}
+
+inline float timeToNormalized(float time, float minTime = 0.001f, float maxTime = 10.0f) {
+    return std::log(time / minTime) / std::log(maxTime / minTime);
+}
+
+
+// skew < 1 = more sensitivity in low end
+// skew > 1 = more sensitivity in high end
+inline float skewedNormalizedToFrequency(float normalized, float minFreq, float maxFreq, float skew = .5f) {
+    float curved = std::pow(normalized, skew);
+    return minFreq * std::pow(maxFreq / minFreq, curved);
+}
+
+// skew < 1 = more sensitivity in low end
+// skew > 1 = more sensitivity in high end
+inline float frequencyToSkewedNormalized(float frequency, float minFreq, float maxFreq, float skew) {
+    frequency = std::clamp(frequency, minFreq, maxFreq);
+    float base = std::log(frequency / minFreq) / std::log(maxFreq / minFreq);
+    return std::pow(base, 1.0f / skew);
+}
+
+
+

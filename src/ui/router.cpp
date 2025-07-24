@@ -38,7 +38,7 @@ shared_ptr<PageWidget> Router::get_page(const string &name) {
         return nullptr;
 }
 
-void Router::showPage(const string &pageName) { _route(pageName); }
+void Router::showPage(const string &pageName) { push(pageName); }
 void Router::printCurrentPage() {
         // Print the current page name
         if (!_current_page.empty()) {
@@ -54,6 +54,7 @@ void Router::_route(const string &pageName) {
 
             return; // Already showing this page
         }
+        beforePageChanged(); // Emit signal before the page changes
         for (auto &[page_name, page] : *_pages) {
             if (page_name == pageName) {
 
@@ -69,4 +70,6 @@ void Router::_route(const string &pageName) {
                 page->deactivate();
             }
         }
+        onPageChanged(pageName); // Emit signal when the page changes
+        afterPageChanged(); // Emit signal after the page has changed
 }

@@ -35,11 +35,11 @@ public:
 
         // Sequence Selection Plus and Minus Buttons
         addConnection(controlSurface->plusButton->onPressed.connect([this]() {
-            mpcSampler->project->sequencer->nextSequence(); // Select the next sequence
+            mpcSampler->sequencer->nextSequence(); // Select the next sequence
         }));
 
         addConnection(controlSurface->minusButton->onPressed.connect([this]() {
-            mpcSampler->project->sequencer->previousSequence(); // Select the previous sequence
+            mpcSampler->sequencer->previousSequence(); // Select the previous sequence
         }));
 
         // Note Repeat Button
@@ -47,15 +47,7 @@ public:
             controlSurface->mpcSampler->noteRepeat->toggleEnabled();
         }));
 
-        addConnection(controlSurface->qlinkScrollEncoder->onOffset.connect([this](int offset) {
-            if(controlSurface->shiftButton->isPressed){
-                if (offset > 0) {
-                    mpcSampler->project->bpm.incrementValue(true); // Increment BPM by coarse value
-                } else if (offset < 0) {
-                    mpcSampler->project->bpm.decrementValue(true); // Decrement BPM by coarse value
-                }
-            }
-        }));
+        
 
         // Pads connections
         addConnection(controlSurface->pads->onMidiIn.connect([this](int index, choc::midi::ShortMessage &msg) {
@@ -77,12 +69,12 @@ public:
         }));
 
         // Track Selected Track Feedback
-        addConnection(controlSurface->mpcSampler->project->onTrackSelected.connect([this](int trackIndex) {
+        addConnection(controlSurface->mpcSampler->onTrackSelected.connect([this](int trackIndex) {
             onTrackSelected(trackIndex);
         }));
 
         // Pad Feedback
-        addConnection(mpcSampler->project->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
+        addConnection(mpcSampler->sequencer->onMidiOutput.connect([this](int trackIndex, choc::midi::ShortMessage &msg) {
             padFeedback(trackIndex, msg);
         }));
 
@@ -98,7 +90,7 @@ public:
         int relativeIndex = trackIndex - trackBankIndex * 16;
         if (relativeIndex >= 0 && relativeIndex < 16){
             auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[relativeIndex].get());
-            auto selectedTrackIndex = mpcSampler->project->selectedTrackIndex();
+            auto selectedTrackIndex = mpcSampler->selectedTrackIndex();
             if(msg.isNoteOn()){
                 if (padControl) {
                     padControl->sendColor(PadControl::PAD_COLOR::YELLOW_FULL); // Set pad color to yellow when note is on
@@ -110,7 +102,7 @@ public:
                     } 
                     else {
                         // Check if the track is empty
-                        auto track = mpcSampler->project->getTracks()[trackIndex];
+                        auto track = mpcSampler->getTracks()[trackIndex];
                         if (track && track->isTrackEmpty()) {
                             padControl->sendColor(PadControl::PAD_COLOR::OFF); // Indicate empty track with green
                         } else {
@@ -119,18 +111,16 @@ public:
                     }
                     
                 }
-            } else {
-                std::cout << "Received unsupported MIDI message type for pad feedback.\n"; // Handle unsupported message types
-            }
+            } 
         }
     }
 
     void onPadsPlay(int index, choc::midi::ShortMessage &msg) {
         int trackToPlay = index + trackBankIndex * 16; // Calculate the track index based on the pad index and bank
         
-        auto track = mpcSampler->project->getTracks()[trackToPlay]; // Get the track from the project
+        auto track = mpcSampler->getTracks()[trackToPlay]; // Get the track from the project
         if (track) {
-            mpcSampler->project->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
+            mpcSampler->selectTrack(index  + trackBankIndex * 16); // Select the track based on the pad index and bank
             if(!controlSurface->shiftButton->isPressed) {
                 auto data = msg.data();
                 auto NewMsg = choc::midi::ShortMessage(data[0], 60, data[2]); // Create a new MIDI message
@@ -146,12 +136,12 @@ public:
     };
 
     void updatePadColors(){
-        int trackIndex = mpcSampler->project->selectedTrackIndex();
+        int trackIndex = mpcSampler->selectedTrackIndex();
         int relativeIndex = trackIndex - trackBankIndex * 16; // Calculate the relative index within the current bank
 
         if (relativeIndex >= 0 && relativeIndex < 16) {
             for (int i = 0; i < 16; ++i) {
-                auto track = mpcSampler->project->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
+                auto track = mpcSampler->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
                 auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[i].get());
                 if (padControl) {
                     if (i + trackBankIndex * 16 == trackIndex) {
@@ -170,7 +160,7 @@ public:
         }
         else{
             for(int i = 0; i < 16; ++i) {
-                auto track = mpcSampler->project->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
+                auto track = mpcSampler->getTracks()[i + trackBankIndex * 16]; // Get the track for the current pad
                 auto padControl = dynamic_cast<PadControl*>(controlSurface->pads->controls[i].get());
                 if (padControl) {
                     padControl->sendColor(PadControl::PAD_COLOR::OFF); // Reset the color if out of range
