@@ -16,6 +16,10 @@ public:
     void onActivateComponent() override {
        auto &con = controlConnections;
        auto &cs = controlSurface;
+        addConnection(controlSurface->playStartButton->onPressed.connect([this]() {
+            controlSurface->save();
+        }));
+
          controlConnections.push_back(controlSurface->playButton->onPressed.connect([this]() {
               mpcSampler->play();
          }));

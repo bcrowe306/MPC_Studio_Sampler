@@ -196,43 +196,51 @@ void DevicePage::onActivated() {
     functionWidgets[4]->setLabel("Solo");
     functionWidgets[5]->setLabel("Mute");
 
-    addConnection(project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
-        headerSection->setMetronomeEnabled(enabled);
-    }));
-    headerSection->setMetronomeEnabled(project->metronomeEnabled.getValue());
+    if(!project.expired()) {
+        // Handle expired project case
+        auto projectPtr = project.lock();
+        addConnection(projectPtr->metronomeEnabled->onValueChanged.connect([this](bool enabled) {
+            headerSection->setMetronomeEnabled(enabled);
+        }));
+        headerSection->setMetronomeEnabled(projectPtr->metronomeEnabled->getValue());
 
-    // Input Quantize
-    addConnection(controlSurface->f3Button->onPressed.connect([this]() {
-       project->inputQuantize.setValue(!project->inputQuantize.getValue());
-    }));
+        // Input Quantize
+        addConnection(controlSurface->f3Button->onPressed.connect([projectPtr]() {
+            projectPtr->inputQuantize->setValue(!projectPtr->inputQuantize->getValue());
+        }));
 
-    addConnection(project->inputQuantize.onValueChanged.connect([this](bool inputQuantize) {
-        headerSection->inputQuantizeButton->setSelected(inputQuantize);
-        
-    }));
+        addConnection(projectPtr->inputQuantize->onValueChanged.connect([this](bool inputQuantize) {
+            headerSection->inputQuantizeButton->setSelected(inputQuantize);
+            
+        }));
 
 
-    addConnection(project->bpm.onValueChanged.connect([this](float bpm) {
-        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
-    }));
-    headerSection->bpmWidget->set_text(fmt::format("{:.2f}", project->bpm.getValue()));
+        addConnection(projectPtr->bpm->onValueChanged.connect([this](float bpm) {
+            headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
+        }));
+        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", projectPtr->bpm->getValue()));
+
+        addConnection(controlSurface->qlinkScrollEncoder->onOffset.connect([this](int offset) {
+            auto projectPtr = project.lock();
+            if(controlSurface->shiftButton->isPressed){
+                if (offset > 0) {
+                    projectPtr->bpm->incrementValue(true); // Increment BPM by coarse value
+                } else if (offset < 0) {
+                    projectPtr->bpm->decrementValue(true); // Decrement BPM by coarse value
+                }
+            }
+            else {
+                offsetParameterBank(offset); // Adjust the parameter bank by offset
+            }
+        }));
+    }
+    
 
     addConnection(controlSurface->qlinkEncoders->onOffset.connect([this](int index, int offset) {
         onQlinkControlsAdjusted(index, offset);
     }));
 
-    addConnection(controlSurface->qlinkScrollEncoder->onOffset.connect([this](int offset) {
-        if(controlSurface->shiftButton->isPressed){
-            if (offset > 0) {
-                project->bpm.incrementValue(true); // Increment BPM by coarse value
-            } else if (offset < 0) {
-                project->bpm.decrementValue(true); // Decrement BPM by coarse value
-            }
-        }
-        else {
-            offsetParameterBank(offset); // Adjust the parameter bank by offset
-        }
-    }));
+    
 
     addConnection(controlSurface->qlinkEncoderTouches->onPressed.connect([this](int index) {
         onQlinkEncoderTouched(index);

@@ -3,11 +3,13 @@
 #include "sigslot/signal.hpp"
 #include <Security/Security.h>
 #include <_types/_uint8_t.h>
+#include "core/serializable.h"
+#include <iostream>
 
 using choc::midi::ShortMessage;
 
 
-class MidiEvent {
+class MidiEvent : public Serializable {
 public:
     enum class EventType {
         Note,
@@ -26,6 +28,8 @@ public:
     int pitch;
     int velocity = 0; // Velocity for NoteOn events
     int value = 0; // Value for ControlChange events
+
+    MidiEvent() = default;
 
     MidiEvent(int id, int startTick, ShortMessage startEvent)
         : id(id), startTick(startTick) {
@@ -57,6 +61,39 @@ public:
             value = startEvent.getControllerValue();
         }
     }
+
+    // Serialize the object to a YAML emitter
+    void serialize(YAML::Emitter &out) override {
+        out << YAML::Key << "id" << YAML::Value << id;
+        out << YAML::Key << "trackIndex" << YAML::Value << trackIndex;
+        out << YAML::Key << "enabled" << YAML::Value << enabled;
+        out << YAML::Key << "startTick" << YAML::Value << startTick;
+        out << YAML::Key << "duration" << YAML::Value << duration;
+        out << YAML::Key << "channel" << YAML::Value << channel;
+        out << YAML::Key << "type" << YAML::Value << static_cast<int>(type);
+        out << YAML::Key << "pitch" << YAML::Value << pitch;
+        out << YAML::Key << "velocity" << YAML::Value << velocity;
+        out << YAML::Key << "value" << YAML::Value << value;
+    };
+
+    // Deserialize the object from a YAML node
+    void deserialize(const YAML::Node &yaml) override {
+        auto node = yaml;
+        if (!node) {
+            std::cerr << "Invalid YAML node for MidiEvent" << std::endl;
+            return;
+        }
+        id = node["id"].as<int>();
+        trackIndex = node["trackIndex"].as<int>();
+        enabled = node["enabled"].as<bool>();
+        startTick = node["startTick"].as<int>();
+        duration = node["duration"].as<int>();
+        channel = node["channel"].as<int>();
+        type = static_cast<EventType>(node["type"].as<int>());
+        pitch = node["pitch"].as<int>();
+        velocity = node["velocity"].as<int>();
+        value = node["value"].as<int>();
+    };
 
     void setPitch(int newPitch) {
         pitch = std::clamp(newPitch, 0, 127); // Ensure pitch is within MIDI range
@@ -129,6 +166,13 @@ public:
 
     void setVelocity(int newVelocity) {
         velocity = std::clamp(newVelocity, 0, 127); // Ensure velocity is within MIDI range
+    }
+
+    void print() const {
+        std::cout << "MidiEvent ID: " << id << ", Start Tick: " << startTick
+                  << ", Duration: " << duration << ", Pitch: " << pitch
+                  << ", Velocity: " << velocity << ", Type: " << static_cast<int>(type) 
+                  << ", Enabled: " << (enabled ? "Yes" : "No") << std::endl;
     }
 
     

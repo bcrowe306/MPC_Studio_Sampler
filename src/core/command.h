@@ -2,7 +2,6 @@
 #include "LabSound/LabSound.h"
 #include "sigslot/signal.hpp"
 #include "util.h"
-#include "yaml-cpp/yaml.h"
 #include <any>
 #include <atomic>
 #include <memory>

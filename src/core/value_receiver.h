@@ -1,12 +1,13 @@
 #pragma once
 #include "core/command.h"
+#include "fmt/format.h"
+#include "yaml-cpp/yaml.h"
 #include <algorithm>
 #include <atomic>
 #include <concepts>
 #include <cstddef>
+#include <iostream>
 #include <string>
-#include "fmt/format.h"
-
 
 class ValueReceiverBase{
 public:
@@ -131,7 +132,7 @@ public:
       throw std::runtime_error("Invalid type for ValueReceiver");
     }
   }
-  virtual void serialize(YAML::Emitter &out) override {
+  void serialize(YAML::Emitter &out) override {
     out << YAML::Key << _name;
     out << YAML::Value;
 
@@ -142,14 +143,23 @@ public:
 
     out << YAML::Key << "value";
     out << YAML::Value << this->_value;
+
+    out << YAML::EndMap;
   };
 
-  virtual void deserialize(YAML::Node &yaml) override {
+  void deserialize(YAML::Node &node) override {
+    YAML::Node yaml = node[_name];
+    if (!yaml) {
+      std::cerr << "Invalid YAML node for ValueReceiver: " << _name
+                << std::endl;
+      return;
+    }
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);
 
-    } else if (yaml.IsMap()) {
+    } 
+    else if (yaml.IsMap()) {
       if (yaml["value"]) {
         _value = yaml["value"].as<T>();
         onValueChanged(_value);
@@ -264,9 +274,16 @@ public:
 
     out << YAML::Key << "value";
     out << YAML::Value << this->_value.load(memory_order_relaxed);
+    out << YAML::EndMap;
   };
 
-  virtual void deserialize(YAML::Node &yaml) override {
+  virtual void deserialize(YAML::Node &node) override {
+    YAML::Node yaml = node[_name];
+    if (!yaml) {
+      std::cerr << "Invalid YAML node for ValueReceiver: " << _name
+                << std::endl;
+      return;
+    }
     if (yaml.IsScalar()) {
       _value.store(yaml.as<bool>(), memory_order_relaxed);
       onValueChanged(_value.load(memory_order_relaxed));
@@ -424,28 +441,24 @@ public:
     out << YAML::Key << "id";
     out << YAML::Value << UUIDToString(this->_id);
 
-    out << YAML::Key << "min";
-    out << YAML::Value << this->_min;
-
-    out << YAML::Key << "max";
-    out << YAML::Value << this->_max;
-
-    out << YAML::Key << "coarseStep";
-    out << YAML::Value << this->_coarseStep;
-
-    out << YAML::Key << "fineStep";
-    out << YAML::Value << this->_fineStep;
-
     out << YAML::Key << "value";
     out << YAML::Value << this->_value;
+    out << YAML::EndMap;
   };
 
-  void deserialize(YAML::Node &yaml) override {
+  void deserialize(YAML::Node &node) override {
+    YAML::Node yaml = node[_name];
+    if (!yaml) {
+      std::cerr << "Invalid YAML node for ValueReceiver: " << _name << std::endl;
+      return;
+    }
+
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);
 
-    } else if (yaml.IsMap()) {
+    } 
+    else if (yaml.IsMap()) {
       if (yaml["value"]) {
         _value = yaml["value"].as<T>();
         onValueChanged(_value);
@@ -454,18 +467,7 @@ public:
         auto idStr = yaml["id"].as<string>();
         _id = GenerateFromString(idStr);
       }
-      if (yaml["min"]) {
-        _min = yaml["min"].as<T>();
-      }
-      if (yaml["max"]) {
-        _max = yaml["max"].as<T>();
-      }
-      if (yaml["coarseStep"]) {
-        _coarseStep = yaml["coarseStep"].as<T>();
-      }
-      if (yaml["fineStep"]) {
-        _fineStep = yaml["fineStep"].as<T>();
-      }
+     
     } else {
       throw std::runtime_error("Invalid YAML node for ValueReceiver");
     }
@@ -602,22 +604,16 @@ public:
     out << YAML::Key << "value";
     out << YAML::Value << this->_value;
 
-    out << YAML::Key << "options";
-    out << YAML::Value << YAML::BeginSeq;
-    for (const auto &option : _options) {
-      out << option;
-    }
-    out << YAML::EndSeq;
-
-    out << YAML::Key << "optionNames";
-    out << YAML::Value << YAML::BeginSeq;
-    for (const auto &name : _optionNames) {
-      out << name;
-    }
-    out << YAML::EndSeq;
+    out << YAML::EndMap;
   };
 
-  virtual void deserialize(YAML::Node &yaml) override {
+  virtual void deserialize(YAML::Node &node) override {
+    YAML::Node yaml = node[_name];
+    if (!yaml) {
+      std::cerr << "Invalid YAML node for ValueReceiver: " << _name << std::endl;
+      return;
+    }
+
     if (yaml.IsScalar()) {
       _value = yaml.as<T>();
       onValueChanged(_value);

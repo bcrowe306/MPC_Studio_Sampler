@@ -1,16 +1,60 @@
 #pragma once
 #include "midi_event.h"
+#include <algorithm>
 #include <iostream>
 #include <vector>
+#include "core/serializable.h"
 
 using std::vector;
 
-class MidiClip {
+class MidiClip : public Serializable {
 public:
     sigslot::signal<> onClipChanged; // Signal emitted when the clip changes
     int id;
     vector<MidiEvent> events; // List of MIDI events in the clip
     int loopPoint = 0;
+
+    // Serialize the object to a YAML emitter
+    void serialize(YAML::Emitter &out) override {
+        out << YAML::Key << "id" << YAML::Value << id;
+        out << YAML::Key << "loopPoint" << YAML::Value << loopPoint;
+        out << YAML::Key << "enabled" << YAML::Value << enabled;
+        out << YAML::Key << "events" << YAML::Value << YAML::BeginSeq;
+        for (auto &event : events) {
+            out << YAML::BeginMap;
+            event.serialize(out); // Serialize each MIDI event
+            out << YAML::EndMap;
+        }
+        out << YAML::EndSeq;
+    }
+
+    // Deserialize the object from a YAML node
+    void deserialize(const YAML::Node &yaml) override {
+        auto node = yaml;
+        
+        id = node["id"].as<int>();
+        loopPoint = node["loopPoint"].as<int>();
+        enabled = node["enabled"].as<bool>();
+        if(node["events"] && node["events"].IsSequence()) {
+            events.clear(); // Clear existing events
+            for (auto eventNode : node["events"]) {
+              MidiEvent event;
+              event.deserialize(eventNode);
+              events.push_back(std::move(event));
+            }
+        }
+        
+        if(!events.empty()) {
+            std::cout << "MidiClip deserialized with " << events.size() << " events." << std::endl;
+        }
+        
+    }
+
+    bool isEmpty() const {
+        // Check if the clip has no events
+        return events.empty();
+    }
+
     bool enabled = true; // Whether the clip is enabled
     
     // Copy constructor
@@ -34,6 +78,8 @@ public:
     {
         // Note: onClipChanged signal is not moved
     }
+    MidiClip() = default; // Default constructor
+    
     MidiClip(int id) : id(id) {
         // Constructor initializes the clip with a unique ID
         events.reserve(50);
@@ -117,6 +163,14 @@ public:
         // Generate a new unique ID for a MIDI event
         return _midiEventId++;
     }
+    void resetClip(){
+        std::lock_guard<std::mutex> lock(_eventsMutex);
+        events.clear();
+        loopPoint = 0;
+        _midiEventId = 0;
+        onClipChanged();
+    }
+
 
 protected:
     std::mutex _eventsMutex; // Mutex to protect access to events

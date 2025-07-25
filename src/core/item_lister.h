@@ -1,3 +1,4 @@
+#pragma once
 #include "sigslot/signal.hpp"
 #include <algorithm>
 #include <iostream>
@@ -95,6 +96,10 @@ public:
 
     int getScrollIndex() const {
         return _scrollIndex; // Return current scroll index
+    }
+
+    int getViewIndex() const {
+        return _scrollIndex - _viewRange.start; // Return the index of the currently viewed item
     }
 
     ViewRange & getViewRange() {

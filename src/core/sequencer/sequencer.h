@@ -7,13 +7,14 @@
 #include "core/playhead.h"
 #include <iostream>
 #include <memory>
+#include "core/serializable.h"
 
 using std::shared_ptr;
 using std::make_shared;
 
 
 
-class Sequencer : public enable_shared_from_this<Sequencer> {
+class Sequencer : public enable_shared_from_this<Sequencer> , public Serializable {
     // Sequencer class to manage multiple sequences and their states
 public:
     sigslot::signal<int> onSequenceSelected;
@@ -28,6 +29,48 @@ public:
         selectSequence(0); // Select the first sequence by default
     }
     ~Sequencer() = default;
+
+    void serialize(YAML::Emitter &out) override {
+        out << YAML::BeginMap;
+        out << YAML::Key << "selectedSequenceIndex" << YAML::Value << _currentSequenceIndex; // Serialize the currently selected sequence index
+        out << YAML::Key << "Sequences" << YAML::Value << YAML::BeginSeq;
+        int sequenceIndex = 0; // Index for each sequence
+        for (const auto &seq : sequences) {
+            if (seq && !seq->isEmpty()) {
+                out << YAML::BeginMap;
+                out << YAML::Key << "index" << YAML::Value << sequenceIndex; // Serialize the sequence index
+                seq->serialize(out); // Serialize each sequence
+                out << YAML::EndMap;
+            }
+            sequenceIndex++;
+        }
+        out << YAML::EndSeq;
+        out << YAML::EndMap;
+    }
+
+    void deserialize(const YAML::Node &node) override {
+        if(node["selectedSequenceIndex"]) {
+            _currentSequenceIndex = node["selectedSequenceIndex"].as<int>(); // Deserialize the currently selected sequence index
+        }
+        if(node["Sequences"]) {
+            auto sequencesNode = node["Sequences"];
+            if(sequencesNode.IsSequence()) {
+                for(const auto &seqNode : sequencesNode) {
+                    int sequenceIndex = seqNode["index"].as<int>(); // Get the sequence index
+                    sequences[sequenceIndex]->deserialize(seqNode);
+                }
+            }
+        }
+    }
+
+    void resetSequencer(){
+        for(auto &seq : sequences) {
+            if (seq) {
+                seq->resetSequence();
+            }
+        }
+        selectSequence(0); // Select the first sequence after reset
+    }
 
     void setLQValue(LQ_VALUE value) {
         for(auto &seq : sequences) {

@@ -122,5 +122,46 @@ inline float frequencyToSkewedNormalized(float frequency, float minFreq, float m
     return std::pow(base, 1.0f / skew);
 }
 
+#include <cstdlib> // for getenv
+#include <filesystem>
+#include <iostream>
+#include <string>
 
+#if defined(_WIN32)
+#include <shlobj.h> // for SHGetKnownFolderPath
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <pwd.h>
+#include <unistd.h>
+#elif defined(__linux__)
+#include <pwd.h>
+#include <unistd.h>
+#endif
 
+inline std::filesystem::path getDocumentsFolder() {
+#if defined(_WIN32)
+    PWSTR path = nullptr;
+    HRESULT hr = SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &path);
+    if (SUCCEEDED(hr)) {
+        std::wstring wpath(path);
+        CoTaskMemFree(path);
+        return std::filesystem::path(wpath);
+    }
+    return std::filesystem::path(); // fallback or error
+#elif defined(__APPLE__) || defined(__linux__)
+    const char *homeDir = getenv("HOME");
+    if (!homeDir) {
+        struct passwd *pwd = getpwuid(getuid());
+        if (pwd)
+          homeDir = pwd->pw_dir;
+    }
+    if (homeDir) {
+        std::filesystem::path documents =
+            std::filesystem::path(homeDir) / "Documents";
+        return documents;
+    }
+    return std::filesystem::path(); // fallback or error
+#else
+    return std::filesystem::path(); // unsupported OS
+#endif
+}

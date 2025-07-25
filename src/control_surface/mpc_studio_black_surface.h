@@ -11,6 +11,7 @@ class Router;
 
 class MPCStudioBlackControlSurface : public enable_shared_from_this<MPCStudioBlackControlSurface>{
 public:
+    sigslot::signal<> saveProject;
     shared_ptr<RtMidiOut> midiout = make_shared<RtMidiOut>();
     shared_ptr<RtMidiIn> midiin = make_shared<RtMidiIn>();
     shared_ptr<MPCSampler> mpcSampler;
@@ -118,7 +119,9 @@ public:
         
     };
     ~MPCStudioBlackControlSurface() = default;
-
+    void save(){
+        saveProject();
+    }
     void initialize() {
             // Register controls
             device->registerControl(playButton);

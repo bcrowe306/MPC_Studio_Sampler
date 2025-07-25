@@ -8,6 +8,7 @@
 #include "device_base.h"
 #include "sigslot/signal.hpp"
 #include "core/buffer_player.h"
+#include "core/nodes/buffer_node.h"
 #include "util.h"
 #include <chrono>
 #include <thread>
@@ -29,7 +30,7 @@ using std::shared_ptr;
 
 struct PolyVoice {
     uint32_t voiceId = 0;
-    shared_ptr<BufferPlayer> samplerNode; // Sampler node for the voice
+    shared_ptr<BufferNode> samplerNode; // Sampler node for the voice
     shared_ptr<GainNode> sampleGainNode; // Gain node for the voice
     shared_ptr<GainNode> velocityAttenuationNode; // Velocity attenuation node for the voice
     shared_ptr<GainNode> amplitudeAttenuationNode; // Amplitude attenuation node for the voice
@@ -72,8 +73,9 @@ struct PolyVoice {
         filterEnvelopeNode = std::make_shared<ADSR>(audioContext);
         pitchEnvelopeNode = std::make_shared<ADSR>(audioContext);
         
-        samplerNode = std::make_shared<BufferPlayer>(audioContext);
-        audioContext->connect(sampleGainNode, samplerNode->outputNode, 0, 0); // Connect the sampler node to the sample gain node
+        samplerNode = std::make_shared<BufferNode>(*audioContext.get());
+        samplerNode->start(0.0); // Start the sampler node immediately
+        audioContext->connect(sampleGainNode, samplerNode, 0, 0); // Connect the sampler node to the sample gain node
         audioContext->connect(velocityAttenuationNode, sampleGainNode, 0, 0); // Connect the sampler node to the sample gain node
         audioContext->connectParam(amplitudeAttenuationNode->gain(), amplitudeEnvelopeNode->functionNode, 0); // Connect the amplitude envelope to the sampler node
         audioContext->connect(amplitudeAttenuationNode, velocityAttenuationNode, 0, 0); // Connect the output volume node to the sampler node
@@ -137,11 +139,7 @@ struct PolyVoice {
         // pitchEnvelopeNode->gate(gate ? 1.0f : 0.0f);
         if(gate) {
             play(); // Start the sampler node
-            if(retrigger) {
-                amplitudeEnvelopeNode->setState(env_retrigger); // Set the envelope state to retrigger
-            } else {
-                amplitudeEnvelopeNode->gate(1.0f); // Gate the envelope to start
-            }
+            amplitudeEnvelopeNode->gate(1.0f); // Gate the envelope to start
         } 
         else {
             amplitudeEnvelopeNode->gate(0.0f);
@@ -673,8 +671,42 @@ public:
             _waveformData[i] = maxSample;
         }
     }
-    void serialize()  override {}
-    void deserialize() override {}
+    // Serialize the object to a YAML emitter
+    void serialize(YAML::Emitter &out) override{
+        filePath->serialize(out);
+        volumeDb->serialize(out);
+        startPosition->serialize(out);
+        endPosition->serialize(out);
+        loop->serialize(out);
+        samplerMode->serialize(out);
+        maxVoices->serialize(out);
+        legato->serialize(out);
+        glideMs->serialize(out);
+        attack->serialize(out);
+        decay->serialize(out);
+        sustain->serialize(out);
+        release->serialize(out);
+        velocitySensitivity->serialize(out);
+    };
+
+    // Deserialize the object from a YAML node
+    void deserialize(const YAML::Node &yaml) override{
+        auto node = yaml;
+        filePath->deserialize(node);
+        volumeDb->deserialize(node);
+        startPosition->deserialize(node);
+        endPosition->deserialize(node);
+        loop->deserialize(node);
+        samplerMode->deserialize(node);
+        maxVoices->deserialize(node);
+        legato->deserialize(node);
+        glideMs->deserialize(node);
+        attack->deserialize(node);
+        decay->deserialize(node);
+        sustain->deserialize(node);
+        release->deserialize(node);
+        velocitySensitivity->deserialize(node);
+    };
 
     void loadSample(const string &filePath) {
         if(filePath.empty()) {

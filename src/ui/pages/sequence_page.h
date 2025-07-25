@@ -183,12 +183,8 @@ public:
             }
         });
 
-        
-        addConnection(project->metronomeEnabled.onValueChanged.connect([this](bool enabled) {
-            headerSection->setMetronomeEnabled(enabled);
-        }));
-        headerSection->setMetronomeEnabled(project->metronomeEnabled.getValue());
-        
+       
+
         // Jog Wheel Controls
         addConnection(controlSurface->jogWheel->onOffset.connect([this](int offset) {
             if (offset > 0) {
@@ -215,8 +211,6 @@ public:
             pianoRollWidget->scrollGridRight();
         }));
 
-
-        
 
         // Function Buttons
         addConnection(controlSurface->functionButtons->onPressed.connect([this](int index) {
@@ -246,17 +240,29 @@ public:
         }));
 
 
+        if(project.expired()){
+            // Handle expired project case
+            return;
+        }
+        auto projectPtr = project.lock();
+
+        addConnection(projectPtr->metronomeEnabled->onValueChanged.connect(
+            [this](bool enabled) {
+              headerSection->setMetronomeEnabled(enabled);
+            }));
+        headerSection->setMetronomeEnabled(projectPtr->metronomeEnabled->getValue());
+
         // BPM Label and control
-        addConnection(project->bpm.onValueChanged.connect([this](float bpm) {
+        addConnection(projectPtr->bpm->onValueChanged.connect([this](float bpm) {
             headerSection->bpmWidget->set_text(fmt::format("{:.2f}", bpm));
         }));
-        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", project->bpm.getValue()));
+        headerSection->bpmWidget->set_text(fmt::format("{:.2f}", projectPtr->bpm->getValue()));
 
-        addConnection(controlSurface->qlinkEncoder4->onOffset.connect([this](int offset) {
+        addConnection(controlSurface->qlinkEncoder4->onOffset.connect([projectPtr](int offset) {
             if(offset > 0) {
-                project->metronomeVolumeDb.incrementValue(true);
+                projectPtr->metronomeVolumeDb->incrementValue(true);
             } else if(offset < 0) {
-                project->metronomeVolumeDb.decrementValue(true);
+                projectPtr->metronomeVolumeDb->decrementValue(true);
             }
         }));
 

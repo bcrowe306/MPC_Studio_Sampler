@@ -75,12 +75,15 @@ public:
             _waveformData[i] = maxSample;
         }
     }
-    void serialize() override {
-        // Implement serialization logic if needed
-    }
-    void deserialize() override {
-        // Implement deserialization logic if needed
-    }
+    // Serialize the object to a YAML emitter
+    void serialize(YAML::Emitter &out) override {
+
+    };
+
+    // Deserialize the object from a YAML node
+    void deserialize(const YAML::Node &yaml) override {
+
+    };
 
     void midiInput(choc::midi::ShortMessage &msg) override {
         if(msg.isNoteOn()) {

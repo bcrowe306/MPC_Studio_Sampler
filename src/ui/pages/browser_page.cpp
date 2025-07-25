@@ -16,6 +16,7 @@ void BrowserPage::onActivated() {
     functionWidgets[3]->setLabel("Auto");
     functionWidgets[4]->setLabel("Prev");
     functionWidgets[5]->setLabel("Load");
+    
     // Connect signals and set up the page when activated
     signalConnections.push_back(controlSurface->jogWheel->onOffset.connect([this](int offset) {
         mpcSampler->browser->scroll(offset);

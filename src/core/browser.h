@@ -33,6 +33,7 @@ public:
     sigslot::signal<> onRefresh; // Signal emitted when the browser is refreshed or items are loaded
     shared_ptr<SamplerDevice> samplerDevice; // Sampler device for audio playback
     shared_ptr<lab::AudioBus> audioBus; // Audio bus for audio processing
+    
     Browser(shared_ptr<AudioContext> audioContext, int initialPageSize = 5, int initialOffsetIndex = 0) : ItemLister(initialPageSize, initialOffsetIndex) 
     {
         _audioContext = audioContext; 

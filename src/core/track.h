@@ -13,6 +13,8 @@
 #include "sigslot/signal.hpp"
 #include "util.h"
 #include "audio/choc_MIDI.h"
+#include "core/serializable.h"
+#include "yaml-cpp/emittermanip.h"
 using std::shared_ptr;
 using std::make_shared;
 
@@ -85,7 +87,8 @@ public:
         }
     }
     
-    void createSamplerDevice(const std::string& filePath) {
+    void createSamplerDeviceFromSample(const std::string& filePath) {
+
         device = make_shared<PolySampler>(context);
         device->filePath->setValue(filePath); // Set the file path for the sampler device
         context->connect(input, device->output, 0, 0);
@@ -93,14 +96,14 @@ public:
         _isEmpty = false; // Track is no longer empty after creating a sampler device
         onIsEmpty(false); // Emit signal that the track is not empty
     }
-
-    void serialize() {
-        // Implement serialization logic if needed
+    void createSamplerDevice() {
+        device = make_shared<PolySampler>(context);
+        context->connect(input, device->output, 0, 0);
+        context->synchronizeConnections();
+        _isEmpty = false; // Track is no longer empty after creating a sampler device
+        onIsEmpty(false); // Emit signal that the track is not empty
     }
 
-    void deserialize() {
-        // Implement deserialization logic if needed
-    }
 
     void midiInput(choc::midi::ShortMessage &msg) {
         
@@ -114,7 +117,7 @@ private:
 
 };
 
-class Track {
+class Track : public Serializable {
   public:
     shared_ptr<VRString> name;  // Track name
     shared_ptr<VRFloat> volumeDb; // Track volume
@@ -127,11 +130,12 @@ class Track {
     sigslot::signal<int, choc::midi::ShortMessage&> midiOutput;
 
     // Constructor for Track
-    Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : name(make_shared<VRString>("Track Name", "New Track", undoManager)),
-          volumeDb(make_shared<VRFloat>("Volume", 0.0f, -60.0f, 6.0f, 1, 0.1, undoManager)),
-          pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
-          mute(make_shared<VRBool>("Mute", false, undoManager)),
-          solo(make_shared<VRBool>("Solo", false, undoManager))
+    Track(shared_ptr<AudioContext> ac, shared_ptr<UndoManager> undoManager = nullptr) : 
+        name(make_shared<VRString>("Name", "New Track", undoManager)),
+        volumeDb(make_shared<VRFloat>("Volume", 0.0f, -60.0f, 6.0f, 1, 0.1, undoManager)),
+        pan(make_shared<VRFloat>("Pan", 0.0f, -1.0f, 1.0f, 0.01f, 0.001f, undoManager)),
+        mute(make_shared<VRBool>("Mute", false, undoManager)),
+        solo(make_shared<VRBool>("Solo", false, undoManager))
     {
         trackNode = make_shared<TrackNode>(ac); // Create a new TrackNode with the audio context
        
@@ -157,7 +161,52 @@ class Track {
     };
     ~Track() = default;
 
-    bool isTrackEmpty() {
+    void serialize(YAML::Emitter &out) override {
+        name->serialize(out);
+        volumeDb->serialize(out);
+        pan->serialize(out);
+        mute->serialize(out);
+        solo->serialize(out);
+        out << YAML::Key << "Device";
+        out << YAML::Value;
+            out << YAML::BeginMap;
+            out << YAML::Key << "Type";
+            out << YAML::Value << deviceTypeToStringMap[_deviceType]; // Serialize the device type as a string
+            if (trackNode->device) {
+                trackNode->device->serialize(out); // Serialize the device if it exists
+            }
+            out << YAML::EndMap;
+    }
+
+    void deserialize(const YAML::Node &node) override {
+        auto rootNode = node;
+        name->deserialize(rootNode);
+        volumeDb->deserialize(rootNode);
+        pan->deserialize(rootNode);
+        mute->deserialize(rootNode);
+        solo->deserialize(rootNode);
+        if (rootNode["Device"]) {
+            auto deviceNode = rootNode["Device"];
+            if (deviceNode["Type"]) {
+                string deviceTypeStr = deviceNode["Type"].as<string>();
+                _deviceType = deviceTypeMap[deviceTypeStr];
+                std::string empty = "";
+                createDevice(_deviceType, empty);
+                if(trackNode->device) {
+                    trackNode->device->deserialize(deviceNode);
+                     // Emit signal that the device has been updated
+                    
+                }
+            }
+        }
+        else {
+            std::string empty = "";
+            createDevice(DeviceType::Undefined, empty); // Create an undefined device if no device node is present
+        }
+        onTrackDeviceUpdated();
+    }
+
+    bool isTrackEmpty() const {
         return trackNode->device == nullptr; // Check if the track has a sampler device
     }
 
@@ -169,29 +218,26 @@ class Track {
         } 
         switch(type) {
             case DeviceType::Sampler: {
-                auto filePath = std::get<std::string>(std::make_tuple(args...));
-                createSamplerDevice(filePath); // Create a sampler device with the provided file path
+                    auto filePath = std::get<std::string>(std::make_tuple(args...));
+                    if(filePath.empty()) {
+                        trackNode->createSamplerDevice(); // Create a sampler device without a file path
+                    }else{
+                        trackNode->createSamplerDeviceFromSample(filePath); // Create a sampler device with the provided file path
+                    }
                 break;
             }
             case DeviceType::Synthesizer:
                 // Implement synthesizer creation logic here
                 break;
             case DeviceType::Undefined:
-                // Handle undefined device type
+                trackNode->device.reset(); // Reset the device if undefined
                 break;
             default:
                 throw std::runtime_error("Unsupported device type");
         }
+        _deviceType = type; // Set the device type
     }
-
-    void createSamplerDevice(const std::string& filePath) {
-        
-        trackNode->createSamplerDevice(filePath); // Create a sampler device for the track
-        trackNode->device->onDeviceChanged.connect([this]() {
-            onTrackDeviceUpdated();
-        }); // Connect to the device changed signal
-        onTrackDeviceUpdated(); // Emit signal that the device has been updated
-    }
+    
 
     bool loadSample(const std::string& filePath) {
         if (!trackNode->device) {
@@ -293,5 +339,6 @@ class Track {
 
 protected:
     int _trackIndex;
+    DeviceType _deviceType = DeviceType::Undefined;
     shared_ptr<TrackNode> trackNode; // Node representing the track in the audio context
 };

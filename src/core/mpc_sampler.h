@@ -1,5 +1,6 @@
 #pragma once
 #include "audio/choc_MIDI.h"
+#include "core/buffer_player.h"
 #include "core/constants.h"
 #include "core/property.h"
 #include <Security/Security.h>
@@ -35,6 +36,7 @@ public:
     sigslot::signal<int> onTrackSelected;    // Signal emitted when a track is selected
     sigslot::signal<bool> onIsPlaying;       // Signal emitted when playback changes state
     sigslot::signal<bool> onIsRecording;     // Signal emitted when recording starts
+    sigslot::signal<> onProjectLoaded;       // Signal emitted when a project is loaded
 
     // Public members
     shared_ptr<TrackNode> masterTrack;       // Master track for the project
@@ -45,14 +47,17 @@ public:
     shared_ptr<UndoManager> undoManager;     // Undo manager for the project
     shared_ptr<TapTempoNode> tapTempoNode;   // Tap tempo node for the project
     shared_ptr<Sequencer> sequencer;         // Sequencer for the project
+
+
     MPCSampler() {
         initialize(); // Initialize the sampler when created
         
-        
     };
+
     ~MPCSampler(){
         uninitialize(); // Clean up resources when the sampler is destroyed
     };
+    
     shared_ptr<Browser> browser; // Browser for file management and navigation
     shared_ptr<MPCSBC::MidiEngine> midiEngine; // MIDI engine for handling MIDI input/output
     shared_ptr<Timer> timer; // MIDI clock for timing
@@ -71,6 +76,7 @@ public:
         timer = make_shared<Timer>(audioEngine->context, audioEngine->context->sampleRate(), 120.0);
         audioEngine->context->connect(audioEngine->context->destinationNode(), timer->timerNode, 0, 0); 
         audioEngine->context->synchronizeConnections(); // Synchronize connections in the audio context
+
         browser = make_shared<Browser>(audioEngine->context); 
         
         // Initialize the note repeat functionality
@@ -107,6 +113,7 @@ public:
     void uninitialize(){};
     void loadProject(std::string projectFilePath){};
     void saveProject(std::string projectFilePath){};
+
     void sendMidiInput(ShortMessage &msg){
         // Forward MIDI input to the project
         fullLevel->processVelocity(msg); // Process MIDI velocity with full level functionality
@@ -116,6 +123,7 @@ public:
         else {
             _sendMidiToProject(msg);
         }
+        
     };
     // Forwards MIDI input to the project's selected track. Could be better. Could use the midi engine's callback system and have the tracks armed for input.
     // This is a temporary solution to get MIDI input working from all devices.
@@ -266,7 +274,7 @@ private:
 
             // Set the track index
             track->setTrackIndex(i);
-            (*track->name.get()) = _createNewTrackName();
+            (*track->name.get()) = "Track " + std::to_string(i + 1);
 
             // Forward MIDI input to the sequencer
             track->midiOutput.connect(
@@ -295,15 +303,5 @@ private:
             _busses[i] = bus; // Add the bus to the list
         }
     }
-    int _getNextTrackIndex() {
-        // Find the next available track index
-        return static_cast<int>(_tracks.size());
-    }
-
-    string _createNewTrackName() {
-        // Generate a new track name based on the next available index
-        int nextIndex = _getNextTrackIndex();
-        return "Track " +
-               std::to_string(nextIndex + 1); // Track names start from 1
-    }
+    
 };

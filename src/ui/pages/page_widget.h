@@ -10,6 +10,7 @@
 #include "core/project.h"
 
 using std::shared_ptr;
+using std::weak_ptr;
 
 // Forward declaration of Router class
 class Router;
@@ -19,7 +20,7 @@ public:
     std::string _title;
     shared_ptr<MPCSampler> mpcSampler;
     shared_ptr<MPCStudioBlackControlSurface> controlSurface;
-    shared_ptr<Project> project; // Project associated with the page
+    weak_ptr<Project> project; // Project associated with the page
     shared_ptr<Router> router;
     std::vector<shared_ptr<FunctionButtonWidget>> functionWidgets;
     std::vector<sigslot::connection> signalConnections;

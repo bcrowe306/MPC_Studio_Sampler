@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <atomic>
+#include "core/serializable.h"
 
 using std::atomic;
 using std::shared_ptr;
@@ -28,7 +29,7 @@ struct ActiveNote {
     int trackIndex;
 };
 
-class Sequence : public IReceiver, public enable_shared_from_this<Sequence> {
+class Sequence : public IReceiver, public enable_shared_from_this<Sequence>, public Serializable {
     
 public:
 
@@ -57,6 +58,8 @@ public:
         Stopping,
         Precount
     };
+
+    
     sigslot::signal<> onSequenceChanged; // Signal emitted when the sequence changes
     sigslot::signal<int, ShortMessage &> midiOut; // Signal for MIDI output from the sequence
     bool inputQuantize = true; // Flag for input quantization
@@ -69,13 +72,62 @@ public:
 
     Sequence(std::shared_ptr<UndoManager> undoManager, int id) : id(id), undoManager_(undoManager) {
 
-        // create clips for 64 tracks
-        clips.reserve(64); // Reserve space for 64 clips
-        for(int i = 0; i < 64; i++) {
+        // create clips for kMaxTracks
+        clips.reserve(kMaxTracks); // Reserve space for kMaxTracks clips
+        for(int i = 0; i < kMaxTracks; i++) {
             clips.emplace_back(_clipId++); // Initialize clips with unique IDs
         }
         setLQValue(_lqValue); // Set the launch quantization value
     }
+
+    void serialize(YAML::Emitter &out) override {
+        out << YAML::Key << "id" << YAML::Value << id; // Serialize the sequence ID
+        out << YAML::Key << "lqValue" << YAML::Value << static_cast<int>(_lqValue); // Serialize the launch quantization value
+        out << YAML::Key << "startTick" << YAML::Value << _startTick.load(memory_order_relaxed); // Serialize the start tick
+        out << YAML::Key << "endTick" << YAML::Value << _endTick.load(memory_order_relaxed); // Serialize the end tick
+
+        out << YAML::Key << "clips" << YAML::Value; // Start serializing the clips
+        out << YAML::BeginSeq;
+        int clipIndex = 0; // Index for each clip
+        for (auto &clip : clips) {
+            if(clip.isEmpty()) {
+                continue; // Skip empty clips
+            }
+            out << YAML::BeginMap;
+            out << YAML::Key << "index" << YAML::Value << clipIndex; // Serialize the clip index
+            clip.serialize(out); // Serialize each clip in the sequence
+            out << YAML::EndMap;
+            clipIndex++;
+        }
+        out << YAML::EndSeq;
+    }
+
+    void deserialize(const YAML::Node &node) override {
+        if (node["id"]) {
+            id = node["id"].as<int>(); // Deserialize the sequence ID
+        }
+        if (node["startTick"]) {
+            setStartTick(node["startTick"].as<int>()); // Set the start tick
+        }
+        if (node["endTick"]) {
+            setEndInTicks(node["endTick"].as<int>());
+        }
+        if (node["lqValue"]) {
+            _lqValue = static_cast<LQ_VALUE>(node["lqValue"].as<int>()); // Deserialize the launch quantization value
+            setLQValue(_lqValue); // Set the launch quantization value
+        }
+        if (node["clips"]) {
+            auto clipsNode = node["clips"];
+            if (clipsNode.IsSequence()) {
+                for (auto clipNode : clipsNode) {
+                    auto clipIndex = clipNode["index"].as<int>(); // Get the clip index
+                    clips[clipIndex].deserialize(clipNode); // Deserialize each clip
+                }
+            }
+        }
+        
+    }
+
 
     // TODO: Undo/Redo support for sequence changes
     void setLQValue(LQ_VALUE value) {
@@ -404,10 +456,11 @@ public:
             if (!clip.enabled) {
                 continue; // Skip disabled clips
             }
-
+            
             // TODO: Use iterator to avoid constantly looping through events on each tick
             for (auto &event : clip.events) {
                 if (event.startTick == _songPosition.tick.load(memory_order_relaxed)) {
+                    
                     auto msg = event.generateMidiData(true); // Generate MIDI data for the start event
                     fireEvent(trackIndex, msg); // Fire the start event
                 }
@@ -443,6 +496,18 @@ public:
         }
         clip.removeEvent(eventId); // Remove the MIDI event from the clip
         onSequenceChanged(); // Emit signal when the sequence changes
+    }
+
+    void resetSequence() {
+        for (auto &clip : clips) {
+            clip.resetClip(); // Reset each clip in the sequence
+        }
+        _songPosition.tick.store(0, memory_order_relaxed); // Reset the song position tick
+        _songPosition.updateFromTick(4, 4); // Update the song position
+        _songPosition.lengthInTicks = _endTick.load(memory_order_relaxed); // Set the length in ticks for the song position
+        setStartTick(0); // Reset the start tick to 0
+        setEndInTicks(kDefaultSequenceLengthInTicks); // Reset the end tick to the default sequence length
+        onSequenceChanged(); // Emit signal when the sequence is reset
     }
 
 

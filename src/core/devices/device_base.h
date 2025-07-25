@@ -10,13 +10,14 @@
 #include <memory>
 #include "audio/choc_MIDI.h"
 #include "device_types.h"
+#include "core/serializable.h"
 
 using std::string;
 using std::shared_ptr;
 using std::make_shared;
 using lab::AudioContext;
 
-class DeviceBase {
+class DeviceBase : public Serializable {
     public:
         
         DeviceBase(shared_ptr<AudioContext> audioContext) : _audioContext(audioContext) 
@@ -35,8 +36,7 @@ class DeviceBase {
         const std::string &getName() const { return _name; }
         DeviceType getType() const { return _type; }
         
-        virtual void serialize() = 0;
-        virtual void deserialize() = 0;
+       
         virtual void midiInput(choc::midi::ShortMessage &msg) = 0;
         virtual void stopAllNotes() {}
         

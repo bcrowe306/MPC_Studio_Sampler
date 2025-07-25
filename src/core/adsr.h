@@ -178,7 +178,7 @@ inline int ADSR::getState() { return state; }
 
 inline void ADSR::resetEnvelope() {
   state = env_idle;
-  output = 0.0;
+  // output = 0.0;
 }
 
 inline float ADSR::getOutput() { return output; }

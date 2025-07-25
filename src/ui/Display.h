@@ -2,6 +2,7 @@
 
 #include "control_surface/mpc_studio_black_surface.h"
 #include "core/mpc_sampler.h"
+#include "core/project_manager.h"
 #include "ui/pages/pages.h"
 #include "ui/widgets/widgets.h"
 #include "widgets/widget.h"
@@ -67,14 +68,16 @@ protected:
 static inline shared_ptr<Display> create_display(
     shared_ptr<MPCSampler> mpcSampler, 
     shared_ptr<MPCStudioBlackControlSurface> controlSurface, 
-    EncodeSurfaceCallback encode_surface_callback) {
+    shared_ptr<ProjectManager> projectManager,
+    EncodeSurfaceCallback encode_surface_callback) 
+{
     auto router = std::make_shared<Router>();
 
     auto display = std::make_shared<Display>(router, mpcSampler, controlSurface, encode_surface_callback);
     auto devicePage = make_shared<DevicePage>(mpcSampler, 0, 0, 360, 96);
     auto sequencePage = make_shared<SequencePage>(mpcSampler, 0, 0, 360, 96);
     auto arrangerPage = make_shared<ArrangerPage>(mpcSampler, 0, 0, 360, 96);
-    auto projectPage = make_shared<ProjectPage>(mpcSampler, 0, 0, 360, 96);
+    auto projectPage = make_shared<ProjectPage>(mpcSampler, projectManager, 0, 0, 360, 96);
     auto mixerPage = make_shared<MixerPage>(mpcSampler, 0, 0, 360, 96);
     auto performPage = make_shared<PerformPage>(mpcSampler, 0, 0, 360, 96);
     auto browserPage = make_shared<BrowserPage>(mpcSampler, 0, 0, 360, 96);
